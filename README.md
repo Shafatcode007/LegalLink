@@ -2,12 +2,6 @@
 
 **Bangladesh's first Emergency Legal Access & Case Transparency Platform.**
 
-[![Status](https://img.shields.io/badge/status-MVP%20in%20Development-orange)](https://github.com/Shafatcode007/LegalLink)
-[![License](https://img.shields.io/badge/license-Proprietary-red)](https://github.com/Shafatcode007/LegalLink)
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B)](https://flutter.dev)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E)](https://supabase.com)
-[![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20Pages-F38020)](https://cloudflare.com)
-
 | Document | Purpose |
 |---|---|
 | [`docs/prd.md`](docs/prd.md) | Product requirements - personas, the 8 MVP features, acceptance criteria |
