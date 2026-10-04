@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:ital,wght@0,600;0,700;1,600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-high":"#eae8e2","on-secondary-container":"#5f626e","stone":"#CFC7B6","on-primary":"#ffffff","surface-container-highest":"#e4e2dc","on-error-container":"#93000a","secondary-fixed-dim":"#c3c6d4","parchment-sunken":"#E7E4DC","inverse-on-surface":"#f3f1eb","surface-container-low":"#f6f3ed","burgundy":"#7A2230","on-error":"#ffffff","surface-variant":"#e4e2dc","error-container":"#ffdad6","on-tertiary":"#ffffff","on-tertiary-fixed-variant":"#324d3a","on-secondary":"#ffffff","on-tertiary-fixed":"#052011","surface-container":"#f0eee8","primary-fixed":"#ffdeab","surface":"#fbf9f3","background":"#fbf9f3","on-surface-variant":"#4f4538","surface-bright":"#fbf9f3","tertiary-fixed-dim":"#afceb6","on-surface":"#1b1c18","secondary":"#5a5e6a","primary":"#634400","on-secondary-fixed":"#171b25","parchment-canvas":"#F0EEE8","forest":"#2F4A38","inverse-primary":"#efbf6e","tertiary-fixed":"#cbead1","oxford-muted":"#6B7280","brass-wash":"#EFE7D6","burgundy-wash":"#F3E2E4","secondary-container":"#dcdfed","error":"#ba1a1a","on-primary-container":"#ffd899","on-primary-fixed":"#271900","surface-tint":"#7c580f","inverse-surface":"#30312d","oxford-soft":"#3A404F","on-tertiary-container":"#c6e5cd","surface-dim":"#dcdad4","surface-container-lowest":"#ffffff","primary-fixed-dim":"#efbf6e","outline-variant":"#d2c4b3","brass":"#7F5B12","secondary-fixed":"#dfe2f0","brass-hover":"#6E4C0E","on-primary-fixed-variant":"#5f4100","tertiary-container":"#4c6854","primary-container":"#7f5b12","tertiary":"#35503d","on-background":"#1b1c18","parchment-raised":"#F7F5F1","oxford":"#1A1E28","on-secondary-fixed-variant":"#434752","outline":"#807566"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-md":"1rem","margin-sm":"1rem","margin":"2rem","space-lg":"1.5rem","gutter-sm":"1rem","space-sm":"0.5rem","gutter":"1.5rem","space-xs":"0.25rem","space-xl":"2rem"},"fontFamily":{"body-md":["Inter"],"headline-sm":["Playfair Display"],"headline-lg":["Playfair Display"],"headline-md":["Playfair Display"],"body-sm":["Inter"],"body-lg":["Inter"],"display-sm":["Playfair Display"],"label-lg":["Inter"],"label-sm":["Inter"],"title-md":["Inter"],"display-lg":["Playfair Display"],"label-md":["Inter"],"title-sm":["Inter"],"display-md":["Playfair Display"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","fontWeight":"600"}],"headline-md":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"display-sm":["30px",{"lineHeight":"38px","fontWeight":"600"}],"label-lg":["14px",{"lineHeight":"20px","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"title-md":["16px",{"lineHeight":"24px","fontWeight":"600"}],"display-lg":["48px",{"lineHeight":"56px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"title-sm":["14px",{"lineHeight":"20px","fontWeight":"600"}],"display-md":["36px",{"lineHeight":"44px","letterSpacing":"-0.01em","fontWeight":"600"}]}}}};</script></head><body class="bg-parchment-canvas font-body-md text-oxford antialiased"><aside class="fixed left-0 top-0 h-full w-[240px] bg-parchment-canvas z-50 flex flex-col justify-between select-none shadow-[1px_0_12px_rgba(26,30,40,0.03)]"><div class="flex flex-col flex-1 min-h-0"><div class="h-16 px-space-md flex items-center gap-space-sm"><div class="w-9 h-9 rounded-lg bg-brass-wash flex items-center justify-center text-brass"><span class="material-symbols-outlined text-[20px]">balance</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-oxford leading-none font-bold">Ain Sohay</span><span class="font-label-sm text-label-sm text-oxford-muted tracking-wider uppercase mt-0.5">LegalLink Pro</span></div></div><div class="px-space-md py-space-sm"><div class="h-px w-full bg-stone/40"></div></div><nav class="flex-1 px-space-xs space-y-1 overflow-y-auto" data-active-classes="bg-brass-wash text-brass font-title-sm font-semibold border-l-2 border-brass"><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">dashboard</span><span class="truncate">Dashboard / ড্যাশবোর্ড</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="sos-inbox" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">crisis_alert</span><span class="truncate">SOS Inbox / এসওএস ইনবক্স</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg transition-all bg-brass-wash text-brass font-title-sm font-semibold border-l-2 border-brass" data-path="cases" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">folder_open</span><span class="truncate">মামলা নথি / Cases</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="invoices" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">receipt_long</span><span class="truncate">ইনভয়েস / Invoices</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="verification" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">verified_user</span><span class="truncate">ভেরিফিকেশন / Verification</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="ai-audit" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">rule_settings</span><span class="truncate">এআই নিরীক্ষা / AI Audit</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded-lg text-oxford-soft hover:bg-surface-container-high hover:text-oxford transition-all font-body-md text-body-md" data-path="profile-settings" href="#"><span class="material-symbols-outlined text-[19px] shrink-0">manage_accounts</span><span class="truncate">প্রোফাইল ও সেটিংস / Profile</span></a></nav></div><div class="p-space-md"><a class="w-full flex items-center justify-center gap-space-xs py-2.5 px-space-sm bg-burgundy hover:bg-burgundy/90 text-on-error rounded-lg shadow-sm transition-all duration-150 font-label-lg text-label-lg" data-path="sos-dispatch" href="#"><span class="material-symbols-outlined text-[18px]">e911_emergency</span><span class="tracking-wide uppercase font-semibold">SOS জরুরি তলব</span></a></div></aside><div class="pl-[240px] flex flex-col min-h-screen bg-parchment-canvas"><header class="fixed top-0 left-[240px] right-0 h-16 bg-parchment-canvas/90 backdrop-blur-md z-40 flex items-center justify-between px-10 shadow-[0_1px_6px_rgba(26,30,40,0.03)]"><div class="flex items-center gap-space-sm"><div class="flex items-center gap-2 text-brass font-headline-sm text-headline-sm"><span class="material-symbols-outlined text-brass text-[22px]">balance</span><span class="font-headline-sm text-headline-sm text-oxford tracking-tight">আইন সহায়</span></div><span class="text-stone">|</span><span class="font-label-sm text-label-sm text-oxford-muted uppercase tracking-wider">Chamber Portal</span></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-1.5 bg-parchment-sunken rounded-lg text-oxford-soft"><span class="material-symbols-outlined text-[18px] text-oxford-muted">search</span><span class="font-body-sm text-body-sm text-oxford-muted pr-space-md">Search docket, NID, or law...</span><kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-parchment-canvas text-oxford-muted rounded">⌘K</kbd></div><div class="flex items-center gap-space-sm text-oxford-muted"><button class="p-1.5 hover:bg-surface-container-high rounded-md transition-colors text-oxford-soft" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="p-1.5 hover:bg-surface-container-high rounded-md transition-colors text-oxford-soft" type="button"><span class="material-symbols-outlined text-[20px]">gavel</span></button></div><div class="h-5 w-px bg-stone/50"></div><div class="flex items-center gap-space-sm pl-space-xs"><div class="flex flex-col text-right"><span class="font-label-md text-label-md text-oxford font-semibold leading-tight">Adv. T. Rahman</span><span class="font-label-sm text-label-sm text-forest font-medium leading-none">Advocate, Supreme Court</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-1 ring-brass/40" src="https://lh3.googleusercontent.com/aida/AEtjO1WkKtEYyTM9cCKgPb1tqfdI1AjkqEslTkJUOrQFSb6mViEAzn7UNE6ke1PJ_JjTiQVXI5nL-kchUQ5VoOzTpuI-bR7-m222qLa67P2-ZCds95v19bKmsbfDX-jevTHC8zKqmNCeF4Ca5C5xXvw9G-EzhezQcOCIMODykMBNYiIJVsiC3hVMtw-UPD_u1guhck8Wxo2UiGbH9MI-FQrJtZ0gTR7DRfVTSYHhP5S0_WWLvvNMRCu0i4Jj1wxiIsvhucsHzP-dTZA7"/></div></div></header><main class="w-full flex-1 pt-16 bg-parchment-canvas min-w-0 p-10"><div class="flex flex-col w-full text-oxford">
+<!-- Top Command & Breadcrumb Context Strip (Flush, No Shadow) -->
+<div class="flex items-center justify-between pb-6 border-b border-stone/50 mb-6">
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-oxford-muted uppercase tracking-wider">ডকেট ব্যবস্থাপনা</span>
+<span class="text-stone">/</span>
+<span class="font-label-sm text-label-sm text-brass font-semibold">শুনানি লগ ও আদেশপত্র</span>
+<span class="px-2 py-0.5 rounded bg-forest/10 text-forest font-label-sm text-label-sm font-semibold tracking-wide">Live Docket</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 text-oxford-soft font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[18px] text-forest">cloud_done</span>
+<span>স্বয়ংক্রিয় ড্রাফট সংরক্ষিত: <time class="font-mono text-oxford">11:42 AM</time></span>
+</div>
+<button class="flex items-center gap-1.5 px-3 py-1.5 bg-parchment-sunken rounded hover:bg-surface-container-high transition-colors text-oxford font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>পূর্ববর্তী রেকর্ড</span>
+</button>
+</div>
+</div>
+<!-- Master Flush Split Panel Layout -->
+<div class="flex flex-col lg:flex-row w-full gap-0 border border-stone/50 bg-parchment-canvas rounded-lg overflow-hidden">
+<!-- LEFT PANEL: Assigned Cases Docket (approx 320px width) -->
+<aside class="w-full lg:w-[320px] shrink-0 border-b lg:border-b-0 lg:border-r border-stone/50 bg-parchment-canvas flex flex-col">
+<!-- Search & Filters Strip -->
+<div class="p-4 border-b border-stone/50 bg-parchment-canvas">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-stone text-[18px]">search</span>
+<input class="w-full pl-9 pr-3 py-2 bg-parchment-sunken text-oxford placeholder-oxford-muted font-body-sm text-body-sm rounded focus:outline-none focus:ring-1 focus:ring-brass border-0" placeholder="মামলা নম্বর বা মক্কেল খুঁজুন..." type="text"/>
+</div>
+<div class="flex items-center justify-between mt-3 text-oxford-muted font-label-sm text-label-sm px-0.5">
+<span class="uppercase tracking-wider">আজকের কার্যতালিকা (৫)</span>
+<span class="text-brass cursor-pointer hover:underline">সবগুলো দেখুন</span>
+</div>
+</div>
+<!-- Case List (Scrollable Stack) -->
+<div class="flex-1 divide-y divide-stone/30 overflow-y-auto max-h-[760px]">
+<!-- Case Item 1: ACTIVE (CRL-2026-8941) -->
+<article class="p-4 bg-brass-wash border-l-[3px] border-brass transition-all cursor-pointer">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<h2 class="font-headline-sm text-headline-sm font-bold text-oxford tracking-tight leading-snug">
+              CRL-2026-8941
+            </h2>
+<span class="px-2 py-0.5 rounded bg-brass text-on-primary font-label-sm text-label-sm font-semibold tracking-wide whitespace-nowrap">
+              চলমান শুনানি
+            </span>
+</div>
+<p class="font-body-md text-body-md text-oxford font-medium truncate">রাষ্ট্র বনাম ইকবাল হোসেন ও অন্যান্য</p>
+<div class="mt-2.5 flex items-center justify-between text-oxford-muted font-body-sm text-body-sm">
+<span class="flex items-center gap-1 truncate max-w-[190px]">
+<span class="material-symbols-outlined text-[15px] text-brass shrink-0">gavel</span>
+<span class="truncate">মহানগর দায়রা জজ ৩</span>
+</span>
+<span class="font-mono text-oxford text-body-sm font-medium">১০:৩০ AM</span>
+</div>
+</article>
+<!-- Case Item 2 -->
+<article class="p-4 hover:bg-parchment-raised transition-all cursor-pointer">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-oxford tracking-tight leading-snug">
+              CIV-2025-1049
+            </h2>
+<span class="px-2 py-0.5 rounded bg-parchment-sunken text-oxford-soft font-label-sm text-label-sm font-medium">
+              সাক্ষ্যগ্রহণ
+            </span>
+</div>
+<p class="font-body-md text-body-md text-oxford-soft truncate">হাজী বোরহান উদ্দিন বনাম রাজউক</p>
+<div class="mt-2.5 flex items-center justify-between text-oxford-muted font-body-sm text-body-sm">
+<span class="flex items-center gap-1 truncate max-w-[190px]">
+<span class="material-symbols-outlined text-[15px] shrink-0">account_balance</span>
+<span class="truncate">প্রথম যুগ্ম জেলা জজ আদালত</span>
+</span>
+<span class="font-mono text-oxford-soft text-body-sm">১২:১৫ PM</span>
+</div>
+</article>
+<!-- Case Item 3 -->
+<article class="p-4 hover:bg-parchment-raised transition-all cursor-pointer">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-oxford tracking-tight leading-snug">
+              WRIT-2026-402
+            </h2>
+<span class="px-2 py-0.5 rounded bg-parchment-sunken text-oxford-soft font-label-sm text-label-sm font-medium">
+              রুল নিশি
+            </span>
+</div>
+<p class="font-body-md text-body-md text-oxford-soft truncate">পরিবেশ সংরক্ষণ মঞ্চ বনাম বাংলাদেশ</p>
+<div class="mt-2.5 flex items-center justify-between text-oxford-muted font-body-sm text-body-sm">
+<span class="flex items-center gap-1 truncate max-w-[190px]">
+<span class="material-symbols-outlined text-[15px] shrink-0">account_balance</span>
+<span class="truncate">হাইকোর্ট বিভাগ বেঞ্চ ৭</span>
+</span>
+<span class="font-mono text-oxford-soft text-body-sm">০২:০০ PM</span>
+</div>
+</article>
+<!-- Case Item 4 -->
+<article class="p-4 hover:bg-parchment-raised transition-all cursor-pointer opacity-80">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-oxford tracking-tight leading-snug">
+              ARB-2026-0034
+            </h2>
+<span class="px-2 py-0.5 rounded bg-parchment-sunken text-oxford-muted font-label-sm text-label-sm font-medium">
+              স্থগিত
+            </span>
+</div>
+<p class="font-body-md text-body-md text-oxford-soft truncate">ডেল্টা ইনফ্রাস্ট্রাকচার বনাম মেঘনা সিমেন্ট</p>
+<div class="mt-2.5 flex items-center justify-between text-oxford-muted font-body-sm text-body-sm">
+<span class="flex items-center gap-1 truncate max-w-[190px]">
+<span class="material-symbols-outlined text-[15px] shrink-0">gavel</span>
+<span class="truncate">বাণিজ্যিক আরবিট্রেশন ট্রাইব্যুনাল</span>
+</span>
+<span class="font-mono text-oxford-muted text-body-sm">০৩:৩০ PM</span>
+</div>
+</article>
+</div>
+<!-- Quick Docket Status Footer -->
+<div class="p-3 border-t border-stone/50 bg-parchment-sunken/60 flex items-center justify-between text-oxford-muted font-label-sm text-label-sm">
+<span class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-forest"></span>
+          বাংলাদেশ সুপ্রিম কোর্ট নেটওয়ার্ক সিঙ্কড
+        </span>
+<span class="font-mono">v4.8</span>
+</div>
+</aside>
+<!-- RIGHT PANEL: Log Hearing Form & AI Legal Draft (~70% width, 40px internal padding) -->
+<main class="flex-1 p-6 md:p-10 bg-parchment-canvas flex flex-col gap-8 min-w-0">
+<!-- Docket Context Header -->
+<header class="flex flex-col gap-2 pb-6 border-b border-stone/40">
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div>
+<h1 class="font-display-md text-display-md font-bold text-oxford tracking-tight">
+              শুনানি নথিভুক্তকরণ
+              <span class="font-headline-md text-headline-md font-normal text-oxford-muted ml-2">(Log Hearing Notes)</span>
+</h1>
+<div class="flex flex-wrap items-center gap-3 mt-2 text-oxford-soft font-body-md text-body-md">
+<span class="font-headline-sm text-headline-sm font-bold text-brass">মামলা নম্বর: CRL-2026-8941</span>
+<span class="text-stone">|</span>
+<span class="font-semibold text-oxford">এখতিয়ার: মহানগর দায়রা জজ আদালত ৩</span>
+<span class="text-stone">|</span>
+<span class="text-oxford-muted">ধারা ৪৯৮ সিআরপিসি (জামিন আবেদন)</span>
+</div>
+</div>
+<div class="flex items-center gap-2 self-start">
+<span class="px-3 py-1 bg-surface-container-high rounded text-oxford font-label-md text-label-md flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-brass">verified</span>
+              প্রাধিকারপ্রাপ্ত আইনজীবী
+            </span>
+</div>
+</div>
+</header>
+<!-- Step 1: Formal Input Form -->
+<form class="space-y-6">
+<!-- Dual Date Pickers Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Hearing Date Picker -->
+<div class="flex flex-col gap-2">
+<label class="font-title-sm text-title-sm text-oxford font-semibold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-brass text-[18px]">calendar_today</span>
+              শুনানির তারিখ (Hearing Date)
+            </label>
+<div class="relative flex items-center bg-parchment-raised border-[1.5px] border-stone rounded-md px-3.5 py-2.5 focus-within:border-brass transition-colors">
+<input class="w-full bg-transparent font-title-md text-title-md text-oxford focus:outline-none cursor-pointer" readonly="" type="text" value="25 Jun 2026"/>
+<span class="material-symbols-outlined text-oxford-muted text-[20px] pointer-events-none">edit_calendar</span>
+</div>
+<span class="font-body-sm text-body-sm text-oxford-muted">আজকের আদালতের কার্যসূচি অনুযায়ী নির্ধারিত</span>
+</div>
+<!-- Next Hearing Date Picker -->
+<div class="flex flex-col gap-2">
+<label class="font-title-sm text-title-sm text-oxford font-semibold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-brass text-[18px]">event_upcoming</span>
+              পরবর্তী তারিখ (Next Date)
+            </label>
+<div class="relative flex items-center bg-parchment-raised border-[1.5px] border-stone rounded-md px-3.5 py-2.5 focus-within:border-brass transition-colors">
+<input class="w-full bg-transparent font-title-md text-title-md text-oxford focus:outline-none cursor-pointer" readonly="" type="text" value="18 Jul 2026"/>
+<span class="material-symbols-outlined text-brass text-[20px] pointer-events-none">event</span>
+</div>
+<span class="font-body-sm text-body-sm text-oxford-muted">আদালত কর্তৃক ঘোষিত পরবর্তী ধার্য দিন</span>
+</div>
+</div>
+<!-- Hearing Observations Textarea with Dictation Indicator -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<label class="font-title-sm text-title-sm text-oxford font-semibold flex items-center gap-2">
+<span class="material-symbols-outlined text-brass text-[19px]">description</span>
+              শুনানির বিবরণ ও আদালতের মৌখিক আদেশ
+            </label>
+<span class="font-label-sm text-label-sm text-oxford-muted font-mono">৮২৪ অক্ষর সংরক্ষিত</span>
+</div>
+<!-- Dictation Affordance Bar -->
+<div class="flex items-center justify-between px-3.5 py-2 bg-brass-wash/80 rounded-t-md border-t-[1.5px] border-x-[1.5px] border-stone">
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full bg-brass text-on-primary flex items-center justify-center hover:bg-brass-hover transition-colors" title="ভয়েস রেকর্ড চালু করুন" type="button">
+<span class="material-symbols-outlined text-[18px]">mic</span>
+</button>
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm font-semibold text-brass">বাংলা ভয়েস টাইপিং সক্রিয়</span>
+<!-- SVG Audio Waveform Indicator -->
+<div class="flex items-center gap-1 h-4">
+<span class="w-0.5 h-2 bg-brass rounded-full animate-pulse"></span>
+<span class="w-0.5 h-4 bg-brass rounded-full animate-pulse"></span>
+<span class="w-0.5 h-3 bg-brass rounded-full animate-pulse"></span>
+<span class="w-0.5 h-5 bg-brass rounded-full animate-pulse"></span>
+<span class="w-0.5 h-2.5 bg-brass rounded-full animate-pulse"></span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 text-oxford-soft font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-forest">auto_fix_high</span>
+<span>এআই রিয়েলটাইম লিগ্যাল সিনপসিস</span>
+</div>
+</div>
+<!-- Textarea Area -->
+<textarea class="w-full bg-parchment-raised border-x-[1.5px] border-b-[1.5px] border-stone rounded-b-md p-4 text-oxford font-body-lg text-body-lg leading-relaxed focus:outline-none focus:border-brass transition-colors placeholder-oxford-muted resize-y" rows="5">আজ ধার্য তারিখে জামিন আবেদনের ওপর পূর্ণ শুনানি অনুষ্ঠিত হয়। বিজ্ঞ মহানগর দায়রা জজ আদালত নথি ও তদন্ত কর্মকর্তার অগ্রবর্তী প্রতিবেদন পর্যালোচনা করেন। আসামী পক্ষের যুক্তি ও মেডিকেল গ্রাউন্ডস বিবেচনায় আদালত সন্তোষ প্রকাশ করে ২ সপ্তাহের অন্তর্বর্তীকালীন জামিন মঞ্জুর করার মৌখিক অভিপ্রায় ব্যক্ত করেছেন এবং বন্ড দাখিলের জন্য আগামী ১৮ জুলাই দিন ধার্য করেন।</textarea>
+</div>
+</form>
+<!-- Step 2: Strict AI Draft Notice Card -->
+<!-- Strictly 2px solid Oxford border and 4px Brass top rule -->
+<section class="relative bg-parchment-raised border-2 border-oxford rounded-none pt-0 overflow-hidden">
+<!-- 4px Brass Rule at top -->
+<div class="h-1 w-full bg-brass"></div>
+<div class="p-6 md:p-8 space-y-6">
+<!-- Card Formal Header -->
+<div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone/60 pb-4">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-brass text-[22px]">verified_user</span>
+<h2 class="font-headline-md text-headline-md font-bold text-oxford tracking-tight">
+                আইনি বিজ্ঞপ্তি (Legal Notice Draft)
+              </h2>
+</div>
+<div class="flex items-center gap-2 font-mono text-body-sm text-oxford-muted">
+<span>DOC-ID: AS-2026-BD-89</span>
+<span class="text-stone">|</span>
+<span class="text-forest font-semibold">AI খসড়া যাচাইকৃত</span>
+</div>
+</div>
+<!-- Structured 3-Line Plain Bangla Summary -->
+<div class="space-y-4 font-body-lg text-body-lg">
+<!-- Point 1 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-start p-3 bg-parchment-canvas rounded">
+<div class="md:col-span-3 flex items-center gap-2 font-title-sm text-title-sm font-bold text-oxford">
+<span class="w-2 h-2 rounded-full bg-brass"></span>
+<span>যা হয়েছে (What happened):</span>
+</div>
+<p class="md:col-span-9 text-oxford leading-relaxed">
+                বিজ্ঞ আদালত জামিন আবেদনের শুনানি শেষে আসামীর অনুকূলে অন্তর্বর্তীকালীন জামিন মৌখিকভাবে মঞ্জুর করেছেন এবং যথাযথ জামিননামা দাখিলের নির্দেশ দিয়েছেন।
+              </p>
+</div>
+<!-- Point 2 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-start p-3 bg-parchment-canvas rounded">
+<div class="md:col-span-3 flex items-center gap-2 font-title-sm text-title-sm font-bold text-oxford">
+<span class="w-2 h-2 rounded-full bg-brass"></span>
+<span>পরবর্তী পদক্ষেপ (Next steps):</span>
+</div>
+<p class="md:col-span-9 text-oxford leading-relaxed">
+                মক্কেলকে অবিলম্বে দুইজন স্থানীয় উপযুক্ত জামিনদারের এনআইডি এবং সংশ্লিষ্ট দলিল সহ চেম্বারে বন্ড প্রস্তুতকরণে উপস্থিত হতে হবে।
+              </p>
+</div>
+<!-- Point 3 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-start p-3 bg-parchment-canvas rounded">
+<div class="md:col-span-3 flex items-center gap-2 font-title-sm text-title-sm font-bold text-oxford">
+<span class="w-2 h-2 rounded-full bg-brass"></span>
+<span>পরবর্তী শুনানি (Next hearing):</span>
+</div>
+<p class="md:col-span-9 text-oxford leading-relaxed font-semibold">
+                ১৮ জুলাই ২০২৬ (18 Jul 2026) তারিখে বন্ড অনুমোদন ও মূল নথিতে অর্ডারের জন্য সংশ্লিষ্ট বেঞ্চে উপস্থাপন।
+              </p>
+</div>
+</div>
+<!-- Stone Disclaimer line at bottom -->
+<footer class="pt-4 border-t border-stone/50 flex flex-wrap items-center justify-between text-stone text-body-sm font-body-sm">
+<span class="flex items-center gap-1.5 text-oxford-muted">
+<span class="material-symbols-outlined text-[16px] text-stone">info</span>
+              আইন সহায়তা কৃত্রিম বুদ্ধিমত্তা সহায়ক ইঞ্জিন দ্বারা প্রাথমিক প্রস্তুতকৃত। প্রকাশে অ্যাডভোকেটের ডিজিটাল পিন আবশ্যক।
+            </span>
+<span class="text-oxford-soft font-mono text-[11px]">Jurisdiction: Dhaka Metro Sessions</span>
+</footer>
+</div>
+</section>
+<!-- Primary Action Footer -->
+<div class="flex items-center justify-end gap-4 pt-2 pb-6">
+<button class="px-6 py-3 border border-stone bg-parchment-raised hover:bg-parchment-sunken rounded-md text-oxford font-label-lg text-label-lg transition-colors" type="button">
+          খসড়া সংরক্ষণ করুন
+        </button>
+<button class="min-h-[48px] px-8 py-3 bg-brass hover:bg-brass-hover text-on-primary font-label-lg text-label-lg font-semibold rounded-md flex items-center justify-center gap-2.5 transition-colors shadow-sm" id="openPinModalBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">pin</span>
+<span>পিন দিয়ে প্রকাশ করুন (Publish with PIN)</span>
+</button>
+</div>
+</main>
+</div>
+<!-- CENTERED PIN SECURITY DIALOG OVERLAY (Shown Open per Spec) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-oxford/40 backdrop-blur-[2px]" id="pinModalBackdrop">
+<!-- Modal Dialog Window -->
+<div aria-modal="true" class="relative w-full max-w-[460px] bg-parchment-raised border border-stone rounded-xl p-8 flex flex-col gap-6" role="dialog" style="box-shadow: 0 12px 32px -4px rgba(26, 30, 40, 0.12);">
+<!-- Dialog Header -->
+<div class="flex items-start justify-between border-b border-stone/40 pb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-brass-wash flex items-center justify-center text-brass">
+<span class="material-symbols-outlined text-[22px]">security</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-oxford leading-snug">
+              ৪-সংখ্যার পিন প্রদান করুন
+            </h3>
+<p class="font-body-sm text-body-sm text-oxford-muted">
+              (Enter 4-Digit Security PIN)
+            </p>
+</div>
+</div>
+<button class="text-oxford-muted hover:text-oxford p-1 rounded hover:bg-parchment-sunken transition-colors" id="closePinModalCross" title="বাতিল করুন" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Case Reference Pill -->
+<div class="px-3 py-2 bg-parchment-sunken rounded text-oxford font-body-sm text-body-sm flex items-center justify-between">
+<span class="text-oxford-muted">স্বাক্ষরিতব্য নথি:</span>
+<span class="font-mono font-bold text-brass">CRL-2026-8941</span>
+</div>
+<!-- 4 PIN Input Boxes (56dp/56px each, masked dots, active focus) -->
+<div class="flex flex-col items-center gap-3 py-2">
+<div class="flex items-center justify-center gap-4">
+<!-- Box 1 (Filled) -->
+<div class="w-14 h-14 bg-parchment-canvas border-[1.5px] border-stone rounded-lg flex items-center justify-center">
+<span class="w-3.5 h-3.5 rounded-full bg-oxford"></span>
+</div>
+<!-- Box 2 (Filled) -->
+<div class="w-14 h-14 bg-parchment-canvas border-[1.5px] border-stone rounded-lg flex items-center justify-center">
+<span class="w-3.5 h-3.5 rounded-full bg-oxford"></span>
+</div>
+<!-- Box 3 (Active Focus) -->
+<div class="w-14 h-14 bg-parchment-canvas border-2 border-brass rounded-lg flex items-center justify-center ring-2 ring-brass/20">
+<span class="w-0.5 h-6 bg-brass animate-pulse"></span>
+</div>
+<!-- Box 4 (Empty) -->
+<div class="w-14 h-14 bg-parchment-canvas border-[1.5px] border-stone rounded-lg flex items-center justify-center">
+<span class="w-2.5 h-2.5 rounded-full bg-stone/60"></span>
+</div>
+</div>
+<p class="font-label-sm text-label-sm text-oxford-muted">সুপ্রিম কোর্ট বায়োমেট্রিক ও পিন ভেরিফিকেশন সিস্টেম</p>
+</div>
+<!-- Security PRD F6 Warning notice -->
+<div class="p-3 bg-burgundy-wash/60 border border-burgundy/30 rounded-lg flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-burgundy shrink-0 mt-0.5">warning</span>
+<p class="font-body-sm text-body-sm text-burgundy font-medium leading-tight">
+          ৫ বার ভুল চেষ্টায় ৩০ মিনিটের জন্য সাময়িক লক হবে (PRD F6)। গোপনীয়তা বজায় রাখুন।
+        </p>
+</div>
+<!-- Dialog Actions -->
+<div class="flex items-center justify-end gap-3 pt-2">
+<button class="px-5 py-2.5 bg-transparent border border-stone hover:bg-parchment-sunken rounded-md text-oxford font-label-md text-label-md transition-colors" id="cancelPinModalBtn" type="button">
+          বাতিল (Cancel)
+        </button>
+<button class="min-h-[44px] px-6 py-2.5 bg-brass hover:bg-brass-hover text-on-primary font-label-md text-label-md font-semibold rounded-md flex items-center gap-2 transition-colors" id="confirmPinModalBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>নিশ্চিত ও প্রকাশ (Confirm &amp; Publish)</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Simple micro-interaction for PIN dialog visibility toggle
+  (function initPinModal() {
+    const backdrop = document.getElementById('pinModalBackdrop');
+    const openBtn = document.getElementById('openPinModalBtn');
+    const cancelBtn = document.getElementById('cancelPinModalBtn');
+    const closeCross = document.getElementById('closePinModalCross');
+    const confirmBtn = document.getElementById('confirmPinModalBtn');
+
+    if (!backdrop || !openBtn) return;
+
+    const closeModal = () => {
+      backdrop.classList.add('hidden');
+    };
+
+    const openModal = () => {
+      backdrop.classList.remove('hidden');
+    };
+
+    cancelBtn?.addEventListener('click', closeModal);
+    closeCross?.addEventListener('click', closeModal);
+    openBtn?.addEventListener('click', openModal);
+
+    confirmBtn?.addEventListener('click', () => {
+      confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> <span>যাচাই হচ্ছে...</span>';
+      setTimeout(() => {
+        confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>প্রকাশিত হয়েছে!</span>';
+        confirmBtn.classList.remove('bg-brass', 'hover:bg-brass-hover');
+        confirmBtn.classList.add('bg-forest');
+        setTimeout(closeModal, 800);
+      }, 700);
+    });
+  })();
+</script></main></div></body></html>

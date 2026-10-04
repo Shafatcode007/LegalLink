@@ -1,0 +1,38 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Python / Seeding Scripts (legacy/future)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.pub-cache/
+*.iml
+
+# Supabase
+.supabase/
+db/.temp/
+
+# Node / Edge Workers
+node_modules/
+.wrangler/
+
+# AI Models (too large for Git)
+models/
+*.gguf
+*.bin
+*.onnx
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
