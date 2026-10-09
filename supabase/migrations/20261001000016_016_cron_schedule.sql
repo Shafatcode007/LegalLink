@@ -1,0 +1,12 @@
+-- db/migrations/20261007_016_cron_schedule.sql
+-- TODO: Cron job scheduling requires superuser privileges on cron.job table.
+-- These should be registered during deployment via a post-migration script
+-- or manually by the DB admin, not via migrations.
+--
+-- Original schedule (for reference):
+--   expire_drafts:               0 * * * *
+--   escalate_pending_checklists: 30 * * * *
+--   expire_sos:                  */15 * * * *
+--   purge_triage_inputs:         0 2 * * *
+--   send_overdue_invoice_reminders: 0 1 * * *
+--   annual_reverify_reminder:    0 3 * * *  (03:00 UTC = 09:00 Asia/Dhaka)
