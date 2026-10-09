@@ -368,7 +368,7 @@ Source: TRD §5.4 (table) + §5.5 (policies) + §5.6 (RPCs) + §9.3 (PIN handlin
 | `draft_bn` | text | not null | Raw AI output |
 | `final_bn` | text | nullable | Advocate-edited final text |
 | `state` | summary_state | not null, default `'draft'` | `draft` → `published` / `archived` |
-| `model` | text | nullable | e.g. llama-3.3-70b, qwen2.5-7b-instruct |
+| `model` | text | nullable | e.g. qwen2.5-7b-instruct, qwen2.5-3b-instruct (HF Serverless / HF transformers) |
 | `prompt_version` | text | nullable | e.g. summary_v3 |
 | `tokens_used` | int | nullable | Cost/observability tracking |
 | `approved_by` | uuid | references `profiles(id)` | Approver profile |
@@ -394,7 +394,7 @@ Source: TRD §5.4 (table) + §5.5 (policies) + §5.6 (RPCs) + §9.3 (PIN handlin
 
 The PIN columns are **not** on this table. They live on `advocates` (see §2.2): `pin_hash`, `pin_fail_count`, `pin_locked_until`. `publish_ai_summary` verifies by joining to `advocates` on the case's advocate and running `crypt(p_pin, pin_hash) = pin_hash` against the bcrypt hash produced by `crypt(pin, gen_salt('bf', 10))`. Rules (§9.3): never store the PIN in plain text; 5 failed attempts per 30 minutes sets `pin_locked_until = now() + 30 min`; 3 lockouts escalate to an admin-assisted reset requiring identity re-check plus an audit row.
 
-The important structural consequence: the HITL gate lives in the **RPC**, not in RLS. `summaries_advocate_all` below is `for all`, so an advocate can bypass the PIN entirely by writing `state = 'published'` directly through PostgREST. That defeats the human-in-the-loop guarantee the section is named for. Either restrict the table's `update` grant to the RPC (`revoke update on ai_summaries from authenticated`) or add a trigger that rejects any write setting `state = 'published'` outside `publish_ai_summary` / `admin_force_publish`.
+Status (2026-10-08): both remedies are applied in db/migrations/20261008_017_hitl_hardening.sql and 20261008_018_rpc_hardening.sql — UPDATE/DELETE on ai_summaries revoked from authenticated, INSERT guarded to draft-only, a publish-guard trigger requires the transaction-local app.internal_write GUC set only by publish_ai_summary / admin_force_publish, and client reads go through the client_ai_summaries projection (excludes raw_input, draft_bn, model, prompt_version, flagged, override_reason; includes published_by). The RLS client policy remains as defence-in-depth.
 
 **RLS policies**
 
@@ -419,7 +419,7 @@ create policy summaries_admin_all on ai_summaries for all
   using (is_admin()) with check (is_admin());
 ```
 
-The client policy is read-only and double-gated on `state = 'published'` plus case ownership — that pairing is the HITL guarantee at the RLS layer. Caveat: `raw_input` and `draft_bn` remain in the same row, so a published summary exposes the advocate's unredacted source notes to the client. If `raw_input` is genuinely PII-bearing, the client-facing read should go through a projection rather than the base table.
+The client policy is read-only and double-gated on `state = 'published'` plus case ownership — that pairing is the HITL guarantee at the RLS layer. Caveat: `raw_input` and `draft_bn` remain in the same row, so a published summary exposes the advocate's unredacted source notes to the client. If `raw_input` is genuinely PII-bearing, the client-facing read should go through a projection rather than the base table. Closed for client reads by the client_ai_summaries projection (017).
 
 ### 2.8 invoices + invoice_items
 
@@ -561,7 +561,7 @@ RLS: `notifications_self` is `for all` using and checking `user_id = auth.uid()`
 
 #### legal_knowledge_base (P1, pgvector)
 
-RAG corpus for the chatbot. Standalone — no FK to any user or case table (§5.3).
+RAG corpus for the chatbot. Sourced from the `sakhadib/Bangladesh-Legal-Acts-Dataset` on Hugging Face. Standalone — no FK to any user or case table (§5.3).
 
 Key columns: `id bigserial`, `source` (`'Penal Code 1860'`), `section` (`'Section 496'`), `chunk_no`, `content_bn not null`, `content_en`, `embedding vector(1024)` (bge-m3 dimension), `created_at`.
 
@@ -690,7 +690,7 @@ end $$;
 
 The PRD F3 invariant is "exactly one advocate wins a SOS", and the `where ... and status = 'open'` predicate inside a single `update` is what delivers it: the second concurrent caller matches zero rows, `v_row.id` is null, and the function returns null rather than raising. The lock is held for the transaction, and status change + audit row + case creation are atomic because they are one call.
 
-**Signature discrepancy.** The TRD heading says `accept_sos(p_sos_id uuid, p_advocate_id uuid) returns setof sos_requests`, but the SQL body takes only `p_sos_id`, uses `auth.uid()` for the advocate, and returns a single `sos_requests`. The body is the safer of the two: a caller-supplied `p_advocate_id` would let any verified advocate accept a SOS *on behalf of* someone else. Treat the heading as a stale draft and the body as authoritative, and correct the TRD.
+**Signature discrepancy.** The TRD heading says `accept_sos(p_sos_id uuid, p_advocate_id uuid) returns setof sos_requests`, but the SQL body takes only `p_sos_id`, uses `auth.uid()` for the advocate, and returns a single `sos_requests`. The body is the safer of the two: a caller-supplied `p_advocate_id` would let any verified advocate accept a SOS *on behalf of* someone else. Treat the heading as a stale draft and the body as authoritative, and correct the TRD. Resolved: TRD §5.7 heading corrected to (p_sos_id uuid) returns sos_requests.
 
 Note also that `accept_sos` is `security definer` and does **not** re-check that the caller is a party to the SOS — `is_verified_advocate()` is the only gate. Any verified advocate can accept *any* open SOS by id, including one in a district they do not serve. That may be deliberate in an emergency bail context, but it is a trade-off and should be recorded as one.
 
@@ -708,6 +708,8 @@ Note also that `accept_sos` is `security definer` and does **not** re-check that
 These steps are specified in the TRD as pseudocode, not plpgsql — the body is not written out. Step 1 verifies against `advocates.pin_hash` (see §2.7 — the PIN columns live on `advocates`, not `ai_summaries`) using `crypt(p_pin, pin_hash) = pin_hash`. Step 6's `dedupe_key = 'summary:'||id` is the reminder-storm guard noted in §2.9.
 
 Steps 3 and 4 carry the HITL weight. As flagged in §2.7 they are the *only* thing stopping a client from publishing a draft directly through PostgREST, because `summaries_advocate_all` is `for all`. The invariant lives entirely in this function; if `update` is ever granted on `ai_summaries` to `authenticated`, the guarantee is void.
+
+Errata (2026-10-08): invalid PIN returns NULL with the counter committed (no raise); audit rows for summary.publish and admin.override are written function-level only; admin_force_publish is exempt from expires_at and publishes coalesce(final_bn, draft_bn).
 
 ### 4.3 RPCs specified by behaviour only
 

@@ -45,7 +45,7 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
 | P3 | **One codebase, two form factors** | Flutter/Dart for web and Android; responsive by `LayoutBuilder`, not by separate apps. |
 | P4 | **Human-in-the-Loop for anything legal** | AI produces `draft`; a verified advocate's PIN publishes. Enforced by RLS, not just UI. |
 | P5 | **AI must never block the core flow** | Every AI feature has a rule-based fallback path (PRD section 8.2 / 14). |
-| P6 | **Off-device AI** | No LLM inference inside the Flutter app. Cloud (Groq) or local llama.cpp server only. |
+| P6 | **Off-device AI** | No LLM inference inside the Flutter app. Cloud (Hugging Face Serverless) or local HF transformers server (ai/local_server/hf_server.py) only. |
 | P7 | **Provider-pluggable AI** | A single `AIService` interface; backend switched by `AI_PROVIDER` env var, same prompts/schemas. |
 | P8 | **Fail loud, fail safe** | Conflicts, RLS rejections and quota breaches surface to the user; never silent data loss. |
 | P9 | **Auditability by default** | Every sensitive mutation writes an append-only `audit_logs` row. |
@@ -64,8 +64,8 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
                                               v
 +---------------------+       +---------------------------------------------+
 |  LLM provider       |       |                LegalLink                    |
-|  - Groq API (cloud) |<----->|  Flutter Web  +  Flutter Android client     |
-|  - llama.cpp (local)|       |  Supabase backend + Cloudflare edge         |
+|  - Hugging Face Serverless (cloud) |<----->|  Flutter Web  +  Flutter Android client     |
+|  - Hugging Face transformers server (local)|       |  Supabase backend + Cloudflare edge         |
 +---------------------+       +--------+----------------+-------------------+
                                        |                |
                     +------------------+                +------------------+
@@ -95,7 +95,7 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
  |      - rate limiting (PRD section 13)                                   |
  |      - AI response caching (KV)                                         |
  |      - invoice PDF rendering                                            |
- |      - OpenAI-compatible passthrough to Groq or llama.cpp                |
+ |      - OpenAI-compatible passthrough to Hugging Face Serverless or the HF transformers server |
  +------------------------------------+------------------------------------+
                                       |
                                       v
@@ -113,7 +113,7 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
  EXTERNAL TIER
  +-------------------------------------------------------------------------+
  | [C10] Firebase Cloud Messaging (push)                                    |
- | [C11] Groq API (production LLM)     [C12] llama.cpp server (local LLM)   |
+ | [C11] Hugging Face Serverless (production LLM)  [C12] Hugging Face transformers server (local LLM)   |
  | [C13] bge-m3 local embedder (dev/CI only)                                |
  +-------------------------------------------------------------------------+
 ```
@@ -132,8 +132,8 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
 | C8 | Supabase Storage | Trusted | Document blobs, signed URL issuance | Upload/view outage; cached metadata remains |
 | C9 | Edge Functions | Trusted | Multi-step atomic operations, cron jobs | Those specific operations fail; DB stays consistent |
 | C10 | FCM | External, best-effort | Push delivery | Silent; in-app timeline remains source of truth |
-| C11 | Groq API | External (no PII sent) | Production LLM inference | Fallback to rule-based output |
-| C12 | llama.cpp | Local, dev/demo | Offline LLM for faculty demo | Fallback to Groq if online |
+| C11 | Hugging Face Serverless | External (no PII sent) | Production LLM inference | Fallback to rule-based output |
+| C12 | HF transformers server | Local, dev/demo | Offline LLM for faculty demo | Fallback to HF Serverless if online |
 | C13 | bge-m3 | Local, build-time | Embeddings for RAG index (P1) | Chatbot not shipped; no MVP impact |
 
 ### 3.5 C4 Level 3 - Components (client app)
@@ -208,7 +208,7 @@ Dependency rule: `presentation -> domain <- data`. No layer may import "upward".
 ```
 1. Advocate types/dictates raw notes
 2. POST /llm/v1/summarize (Cloudflare Worker) with JWT
-3. Worker: verify JWT -> rate limit -> PII redaction -> AI call (Groq | llama.cpp)
+3. Worker: verify JWT -> rate limit -> PII redaction -> AI call (HF Serverless | HF transformers server)
 4. Worker returns {summary_bn, model, prompt_version, tokens}
 5. App inserts ai_summaries row with status='draft' (advocate-scoped RLS)
 6. Advocate edits, taps Publish, enters 4-digit PIN
@@ -275,8 +275,8 @@ Advocate A and B both tap Accept on the same SOS at the same moment
 | KV cache | Cloudflare KV | Caches deterministic AI responses keyed by input hash | $0 |
 | Web hosting | Cloudflare Pages | Flutter Web build output, auto SSL, global CDN | $0 |
 | Object store (optional) | Cloudflare R2 | Overflow for large docs if Supabase 1 GB is exceeded | $0 (10 GB) |
-| Production LLM | Groq API - `llama-3.x` | OpenAI-compatible `/chat/completions`, JSON mode | $0 (free tier) |
-| Local LLM | llama.cpp server + Qwen 2.5-7B GGUF (Q4_K_M) | `localhost:8080`, OpenAI-compatible | $0 |
+| Production LLM | Hugging Face Serverless - Qwen 2.5-7B | OpenAI-compatible `/chat/completions`, JSON mode | $0 (free tier) |
+| Local LLM | Hugging Face transformers server + Qwen 2.5-3B (or fine-tune) | `localhost:8080`, OpenAI-compatible | $0 |
 | Embeddings | `BAAI/bge-m3` via Python/ONNX at build time | RAG index build (P1) | $0 |
 | RAG store | Supabase `pgvector` | Table `legal_knowledge_base` | $0 |
 
@@ -288,7 +288,7 @@ Advocate A and B both tap Accept on the same SOS at the same moment
 | CI | GitHub Actions | analyze, test, RLS test, golden AI set, build | 2000 min/mo free |
 | Web deploy | Cloudflare Pages Action | On merge to `main`; preview per PR | $0 |
 | Android release | GitHub Actions + Gradle | Signed APK on version tag -> GitHub Release | $0 |
-| Secrets | GitHub Secrets + Supabase Vault | Service key, Groq key, FCM key, keystore | $0 |
+| Secrets | GitHub Secrets + Supabase Vault | Service key, HF API key, FCM key, keystore | $0 |
 | Local DB | Supabase CLI + Docker | `supabase start` for local Postgres/Auth/Storage | $0 |
 | DB migrations | Supabase CLI migrations (SQL files) | `expand -> migrate -> contract` | $0 |
 | Code quality | `flutter analyze`, `dart format`, `sqlfluff` | Pre-commit + CI | $0 |
@@ -479,7 +479,7 @@ create table ai_summaries (
   draft_bn       text not null,              -- AI output
   final_bn       text,                       -- advocate-edited final text
   state          summary_state not null default 'draft',
-  model          text,                       -- e.g. llama-3.3-70b | qwen2.5-7b-instruct
+  model          text,                       -- e.g. qwen2.5-7b-instruct | qwen2.5-3b-instruct
   prompt_version text,                       -- e.g. summary_v3
   tokens_used    int,
   approved_by    uuid references profiles(id),
@@ -907,7 +907,7 @@ create policy audit_admin_read on audit_logs for select using (is_admin());
 
 These exist because the operations must be atomic and enforce business rules that RLS alone cannot express.
 
-**`accept_sos(p_sos_id uuid, p_advocate_id uuid) returns setof sos_requests`**
+**`accept_sos(p_sos_id uuid) returns sos_requests`**
 ```sql
 create or replace function accept_sos(p_sos_id uuid)
 returns sos_requests
@@ -949,9 +949,10 @@ end $$;
 -- 4) set state='published', final_bn, approved_by=auth.uid(), published_by='advocate'
 -- 5) audit_logs insert 'summary.publish'
 -- 6) notifications insert (dedupe_key = 'summary:'||id)
+-- Errata: step 2 failure path increments the counter and RETURNs NULL (no raise) so the counter commits; audit row is written function-level only (no companion trigger).
 ```
 
-**`admin_force_publish(p_summary_id uuid, p_reason text)`** - admin-only, requires `is_admin()` **and** a non-empty `p_reason`; sets `published_by='admin_override'`; writes `audit_logs` with action `admin.override`.
+**`admin_force_publish(p_summary_id uuid, p_reason text)`** - admin-only, requires `is_admin()` **and** a non-empty `p_reason`; sets `published_by='admin_override'`; writes `audit_logs` with action `admin.override`. Exempt from the expires_at draft-expiry check by design; publishes coalesce(final_bn, draft_bn); sets app.internal_write for the publish guard.
 
 **`next_invoice_no(p_advocate uuid) returns text`** - sequence per advocate, reset every 1 January (`INV-{YEAR}-{SEQ}`), `INV-{YEAR}-{SEQ}` uniqueness enforced by the unique index.
 
@@ -1172,7 +1173,7 @@ Every route: JWT required -> verify with Supabase JWKS -> rate limit (KV) -> PII
 | `/v1/ai/triage` | POST | `{ "answers": {...}, "case_type": "bail" }` | `{ case_type, urgency, overview_bn, actions_bn[], checklist[], disclaimer_bn, model, prompt_version, cached }` | Rule-based template merged with AI suggestions; template-only on AI failure |
 | `/v1/ai/summarize` | POST | `{ "raw_notes": "...", "case_type": "bail", "language": "bn" }` | `{ draft_bn, model, prompt_version, tokens, fallback_used }` | JSON mode, temperature 0.2, 30s timeout |
 | `/v1/ai/chat` (P1) | POST | `{ "question_bn": "..." }` | `{ answer_bn, sources[], disclaimer_bn }` | RAG; no chunk found -> `answer_bn` = "consult an advocate" |
-| `/v1/ai/health` | GET | - | `{ provider: "groq\|local", reachable: bool, latency_ms }` | Used by the app's health badge |
+| `/v1/ai/health` | GET | - | `{ provider: "huggingface\|local", reachable: bool, latency_ms }` | Used by the app's health badge |
 | `/v1/invoice/pdf` | POST | `{ "invoice_id": "uuid" }` | `{ url, expires_in }` | Reads invoice via service role after verifying the caller is a party |
 | `/v1/rate/check` | POST | `{ "action": "sos\|triage\|pin\|..." }` | `{ allowed, remaining, reset_at }` | Shared limiter used by the app for pre-flight UX |
 
@@ -1188,7 +1189,7 @@ request -> [1] JWT verify (JWKS cached 1h)
                names: from a provided name list in the payload
                -> keep a local map to re-hydrate placeholders in the response
         -> [5] KV cache lookup (sha256 of model+prompt_version+redacted input); TTL 24h
-        -> [6] provider call: AI_PROVIDER=groq -> api.groq.com/openai/v1/chat/completions
+        -> [6] provider call: AI_PROVIDER=huggingface -> router.huggingface.co/v1/chat/completions
                               AI_PROVIDER=local -> http://localhost:8080/v1/chat/completions
         -> [7] JSON schema validation of the model output
         -> [8] re-hydrate placeholders -> response + logging to Supabase (service role)
@@ -1232,7 +1233,7 @@ PostgREST/RPC errors (mapped in the client to Bangla messages):
 | `not_verified_advocate` | `accept_sos` | "Your account is not verified yet." |
 | `sos_already_taken` (null result) | `accept_sos` | "Another advocate already accepted this SOS." |
 | `rate_limited` | Worker / RPC | Show remaining time from `reset_at`. |
-| `invalid_pin` | `publish_ai_summary` | Show attempts left; lock after 5. |
+| invalid_pin (NULL return)|publish_ai_summary|Wrong PIN: RPC returns NULL and the counter commits; show attempts-left read from the advocate's own row; lock after 5.|
 | `pin_locked` | `publish_ai_summary` | Show lock expiry time. |
 | `draft_expired` | `publish_ai_summary` | "This draft expired. Generate a new summary." |
 | `conflict_stale_version` | consent/invoice/publish writes | Show the conflict sheet -> "reload and reapply". |
@@ -1293,7 +1294,7 @@ class AIServiceFactory {
       c.aiEnabled ? WorkerAIService(c) : TemplateAIService();
 }
 ```
-Switching `AI_PROVIDER` between `groq` and `local` happens **inside the Worker** - the Flutter app never changes. This satisfies the PRD's hybrid-AI requirement (`AI_PROVIDER=local` demo runs with no internet on the app side).
+Switching `AI_PROVIDER` between `huggingface` and `local` happens **inside the Worker** - the Flutter app never changes. This satisfies the PRD's hybrid-AI requirement (`AI_PROVIDER=local` demo runs with no internet on the app side).
 
 ### 7.2 Prompt Contracts and JSON Schemas
 
@@ -1337,8 +1338,8 @@ Prompts live in `edge/worker/prompts/{feature}_{version}.ts` (e.g. `triage_v3.ts
 
 ```
 OFFLINE (build time, weekly)
-1. Crawl bdlaws.minlaw.gov.bd (15-20 acts)
-2. Clean: strip HTML/nav, normalize Bangla Unicode, drop headers/footers
+1. Download sakhadib/Bangladesh-Legal-Acts-Dataset from Hugging Face and filter to 15-20 core acts
+2. Clean: Parse JSON, extract section_content, normalize Bangla Unicode
 3. Chunk: 300-500 words with 50-word overlap -> legal_knowledge_base rows
 4. Embed with bge-m3 (1024-dim) locally
 5. INSERT into legal_knowledge_base (source, section, chunk_no, content_bn, embedding)
@@ -1377,10 +1378,13 @@ domain (entities, use cases, repository interfaces)   <-- pure Dart, unit-tested
 data (repository impls, DTOs, Supabase/Hive sources)
 ```
 
-Rules enforced in `analysis_options.yaml` and CI:
-- `domain/**` may not import `flutter`, `supabase_flutter`, or `hive`.
-- `presentation/**` may not import `data/**`.
-- Every use case is a class with a single `call()`; unit tests call it with a mocked repository.
+Rules enforced by custom_lint path rules (CI job `arch-lint`, section 11.3):
+- `lib/**/domain/**` may not import `lib/**/presentation/**`, `lib/**/data/**`, or the packages `flutter`, `supabase_flutter`, `hive`. The pure-Dart `riverpod` package IS allowed in domain for provider tokens.
+- `lib/**/presentation/**` may not import `lib/**/data/**`.
+- A feature may import another feature's `domain/` layer only; shared UI and widgets live in `shared/` or `core/`.
+- Single exemption (composition root): `lib/app/di.dart` may import `data/**` to bind repository implementations; no other file is exempt.
+Repository binding: abstract provider tokens (e.g. `sosRepositoryProvider`) are declared in the feature's `domain/` layer; concrete bindings (e.g. `SupabaseSosRepository`) are registered only via `ProviderScope` overrides in `lib/app/di.dart`.
+Every use case is a class with a single `call()`; unit tests call it with a mocked repository.
 
 ### 8.2 State Management
 
@@ -1398,12 +1402,14 @@ Rules enforced in `analysis_options.yaml` and CI:
 ```dart
 abstract class SosRepository {
   Future<Result<SosRequest>> create(SosDraft draft);
-  Future<Result<SosRequest?>> accept(String sosId);   // null => lost the race
+  Future<Result<SosRequest?>> accept(String sosId);   // null => lost the race; realtime-only, never queued in the outbox (section 8.4)
   Stream<List<SosRequest>> watchOpenInDistricts(List<String> districts);
-  Future<List<SosRequest>> history();
+  Future<Result<List<SosRequest>>> history();
 }
 ```
 `Result<T>` is `Ok<T> | Err(Failure)`; `Failure` carries a code, Bangla message, and `retryable`.
+Stream contract: errors emitted by `watchOpenInDistricts` are mapped to `Failure` (codes per section 6.7) before reaching the `StreamProvider`; `AsyncValue.error` must always carry a `Failure`, never a raw `PostgrestException`.
+Keying contract: realtime providers keyed by a district set must derive a stable `String` family key (districts sorted, then joined) - never a `List` identity key - so equal lists reconstructed on any rebuild reuse the same subscription. A widget test asserts exactly one Realtime channel across forced rebuilds.
 
 ### 8.4 Offline Sync Engine
 
@@ -1446,6 +1452,7 @@ Outbox record (Hive box `outbox`):
 | Consent revocation wins | Client-side: on receiving a revocation, drop queued advocate writes for that case |
 | File uploads | `documents` row written with `local_ref` immediately; bytes uploaded on connectivity; then `storage_path` + status update |
 | Visibility | `SyncBadge` widget bound to `syncStatusProvider` |
+| SOS accept is realtime-only | `accept()` calls the RPC live and is never enqueued in the outbox; a replayed accept could show an optimistic "accepted" that flips to failed after the race is lost |
 
 ### 8.5 Responsive Design
 
@@ -1528,6 +1535,7 @@ Non-goals for the MVP: full WCAG 2.2, sign-language content, and an audio-only m
 - 3 lockouts -> admin-assisted reset (requires identity re-check + audit row).
 - PIN is required for: publishing an AI summary. Changeable in profile (old PIN required).
 - PIN attempts are logged with actor, time, IP, device.
+- Errata (2026-10-08): an invalid PIN does not raise; publish_ai_summary increments pin_fail_count (and sets pin_locked_until at 5) and returns NULL, because a raised exception would roll the increment back. Clients treat NULL as invalid_pin. Lock state on entry still raises pin_locked; missing PIN raises pin_not_set.
 
 ### 9.4 Privacy Controls
 
@@ -1546,7 +1554,7 @@ Non-goals for the MVP: full WCAG 2.2, sign-language content, and an audio-only m
 |---|---|---|
 | `SUPABASE_ANON_KEY` | Flutter app bundle (public by design) | - |
 | `SUPABASE_SERVICE_ROLE_KEY` | Edge Functions env, Worker env | Flutter app, git |
-| `GROQ_API_KEY` | Worker secret | Flutter app, git |
+| `HF_API_KEY` | Worker secret | Flutter app, git |
 | `FCM_SERVER_KEY` | Edge Functions secret | Flutter app, git |
 | Android keystore | GitHub Secret (base64) | git, repo |
 | `JWT` signing secret | Managed by Supabase | anywhere else |
@@ -1578,7 +1586,7 @@ Non-goals for the MVP: full WCAG 2.2, sign-language content, and an audio-only m
 | PostgREST read p95 | < 500 ms | Indexes on all RLS predicates (section 5.5), selective `select=` projections |
 | Advocate search p95 | < 100 ms | GIN indexes on `districts/courts/specializations`; ranked RPC |
 | Realtime latency | < 1 s | Single channel per case; filtered subscriptions |
-| AI triage | < 8 s p95 | Groq (~500 tok/s); KV response cache for repeat inputs; JSON mode |
+| AI triage | < 8 s p95 | Hugging Face Serverless; KV response cache for repeat inputs; JSON mode |
 | AI summary draft | < 10 s p95 | Short outputs (max 120 words), temperature 0.2 |
 | Sync of a queued item | < 2 s per item on 3G | FIFO worker, no parallel storms, 100-item cap |
 
@@ -1597,7 +1605,7 @@ Non-goals for the MVP: full WCAG 2.2, sign-language content, and an audio-only m
 | Phase | Users | Bottleneck | Action |
 |---|---|---|---|
 | MVP | 0-500 | none | Free tiers (PRD section 9) |
-| Growth | 500-5,000 | Supabase storage + Realtime concurrency | Supabase Pro (~$25/mo), Groq paid tier, add R2 for documents |
+| Growth | 500-5,000 | Supabase storage + Realtime concurrency | Supabase Pro (~$25/mo), Hugging Face paid tier, add R2 for documents |
 | Scale | 5,000-50,000 | Postgres connections, Realtime fan-out | Supavisor pooling, partition `audit_logs` by month, split Realtime channels per district |
 | Enterprise | 50,000+ | Multi-region, compliance | Self-hosted Supabase, read replicas, CDN-cached advocate directory |
 
@@ -1607,8 +1615,8 @@ Design choices that delay the need to scale: cursor pagination everywhere, no N+
 
 | Degraded component | Core flow (SOS -> case -> timeline) | AI features | UI signal |
 |---|---|---|---|
-| Groq/Groq quota | unaffected | template fallback | "AI is busy" note |
-| llama.cpp down | unaffected | Groq or template fallback | health badge red in dev |
+| HF Serverless rate limit / outage | unaffected | template fallback | "AI is busy" note |
+| HF local server down | unaffected | HF Serverless or template fallback | health badge red in dev |
 | Realtime down | works (delta pull on focus/resume) | works | "showing cached data" badge |
 | FCM down | works | works | inbox still populates |
 | Storage down | metadata works | works | upload retry button |
@@ -1635,9 +1643,9 @@ LegalLink/
 
 | Env | Supabase | Worker | AI_PROVIDER | Purpose |
 |---|---|---|---|---|
-| `local` | `supabase start` (Docker) | `wrangler dev` | `local` (llama.cpp) | Daily development, offline |
-| `staging` | Separate free project | `wrangler deploy --env staging` | `groq` | PR previews, RLS tests, demo rehearsal |
-| `prod` | Main free project | `wrangler deploy --env prod` | `groq` | Pilot users |
+| `local` | `supabase start` (Docker) | `wrangler dev` | `local` (hf_server.py) | Daily development, offline |
+| `staging` | Separate free project | `wrangler deploy --env staging` | `huggingface` | PR previews, RLS tests, demo rehearsal |
+| `prod` | Main free project | `wrangler deploy --env prod` | `huggingface` | Pilot users |
 
 ### 11.3 CI Pipeline (`.github/workflows/ci.yml`)
 
@@ -1649,8 +1657,9 @@ jobs:
   rls:       supabase start -> db push -> psql -f db/tests/rls_test.sql
   ai-golden: run 30 fixed inputs against the mock provider; assert JSON schema
              (CI stays provider-independent and free of API keys; the REAL
-              dual-provider run on Groq + local Qwen is a Sprint 1 gate, see 16.2)
+              dual-provider run on Hugging Face Serverless + local HF transformers is a Sprint 1 gate, see 16.2)
   sql-lint:  sqlfluff on db/migrations
+  arch-lint: custom_lint import-matrix check (section 8.1 path rules)
   build:     flutter build web --release  +  flutter build apk --debug (artifact)
 ```
 
@@ -1732,11 +1741,12 @@ jobs:
 | Integration (client) | auth -> SOS -> case -> checklist -> publish flow against local Supabase | `integration_test` | Nightly + pre-release |
 | Database/RLS | per-table "cannot read others' rows" assertions; concurrent `accept_sos`; PIN lockout | `psql` + `pgTAP`-style SQL asserts | Every PR that touches `db/**` |
 | API contract | PostgREST RPC shapes + Worker routes with a mock provider | `vitest` (Worker) | Every PR |
-| AI golden set | 30 fixed Bangla inputs -> assert JSON schema + banned-phrase absence | Node script | Every PR (mock provider) that touches `edge/worker/prompts/**` or `ai/**`; **dual-provider run on Groq + local Qwen is a Sprint 1 gate (section 16.2)** |
+| AI golden set | 30 fixed Bangla inputs -> assert JSON schema + banned-phrase absence | Node script | Every PR (mock provider) that touches `edge/worker/prompts/**` or `ai/**`; **dual-provider run on Hugging Face Serverless + local HF transformers is a Sprint 1 gate (section 16.2)** |
 | Accessibility | 48x48 dp targets, Bangla semantic labels, contrast tokens, text scaling 1.0-2.0, Tab traversal | `flutter_test` + `SemanticsTester` + manual audit | Pre-release (rules in section 8.8) |
 | Manual pilot script | 20 steps (demo flow, offline flow, abuse limits) | Human checklist | Pre-release; re-run as gate D-1 before the faculty demo (section 16.3) |
 | Load sanity | 50 concurrent Realtime subscribers, 100 sequential writes | `k6` | Pre-release |
 | Manual pilot script | 20 steps (demo flow, offline flow, abuse limits) | Human checklist | Pre-release |
+| Architecture | import matrix (domain/presentation/data path rules, section 8.1); Riverpod district-key single-subscription widget test | custom_lint + flutter_test | Every PR |
 
 **Definition of Done (per feature):** unit + widget tests, RLS coverage if it touches data, Bangla strings in ARB (bn + en), empty/error/offline states designed, audit events emitted, and the PRD acceptance criteria demonstrated in staging.
 
@@ -1749,13 +1759,13 @@ jobs:
 | GitHub org + repo | Source, CI, releases | All 4 | $0 |
 | Supabase (prod + staging projects) | DB, Auth, Storage, Realtime, Functions | All 4 | $0 |
 | Cloudflare account | Workers, Pages, KV, (R2 optional) | Backend + Frontend leads | $0 |
-| Groq account | LLM API key | AI lead | $0 |
+| Hugging Face account | LLM API key / model access | AI lead | $0 |
 | Firebase project | FCM + Android app registration | Frontend lead | $0 |
 | Android Studio / VS Code / IntelliJ | Flutter dev | All 4 | $0 |
 | Flutter SDK + Android SDK | Build/run | All 4 | $0 |
 | Supabase CLI + Docker Desktop | Local stack, migrations | Backend lead (+ AI lead) | $0 |
 | Wrangler CLI | Worker dev/deploy | Backend lead | $0 |
-| llama.cpp + Qwen 2.5-7B GGUF | Offline AI demo | AI lead | $0 |
+| Python + HF transformers + Qwen 2.5-3B | Offline AI demo (hf_server.py) | AI lead | $0 |
 | LM Studio / OpenWebUI (optional) | Prompt testing UI | AI lead | $0 |
 | Postman / `.http` files | API smoke tests | All 4 | $0 |
 | `sqlfluff`, `flutter_lints` | Static quality | All 4 | $0 |
@@ -1779,8 +1789,8 @@ supabase db push        # apply db/migrations
 psql "$LOCAL_DB_URL" -f db/seed.sql
 
 # 3. Local AI (offline demo mode)
-#    download Qwen2.5-7B-Instruct GGUF (Q4_K_M, ~4.5 GB)
-llama-server -m models/qwen2.5-7b-instruct-q4_k_m.gguf --port 8080 -ngl 99
+#    download Qwen2.5-3B-Instruct (or fine-tuned model)
+python ai/local_server/hf_server.py  # Hugging Face transformers server on port 8080
 
 # 4. Worker
 cd edge/worker
@@ -1797,7 +1807,7 @@ flutter run -d <android-device>   # android
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 AI_GATEWAY_URL=http://localhost:8787
-AI_PROVIDER=local          # local | groq
+AI_PROVIDER=local          # local | huggingface
 AI_ENABLED=true
 ```
 
@@ -1807,7 +1817,7 @@ Smoke check after boot: log in as a seeded client with the local dev OTP, open t
 
 | Sprint | Technical deliverables | Readiness gate (must pass to exit the sprint) |
 |---|---|---|
-| 1 (W1-2) | Monorepo, local Supabase, migrations 001-016 (core tables + RLS, including `fcm_token`/`fcm_updated_at`), auth + onboarding, profiles/advocates, CI skeleton, `MinTapTarget` + Bangla font subset | **G-1.1 RLS suite green on day 1** and **G-1.2 AI golden set valid on both providers** (section 16.2) |
+| 1 (W1-2) | Monorepo, local Supabase, migrations 001-016 (core tables + RLS, including `fcm_token`/`fcm_updated_at`), auth + onboarding, profiles/advocates, CI skeleton, `MinTapTarget` + Bangla font subset, custom_lint import matrix + `arch-lint` CI job | **G-1.1 RLS suite green on day 1** and **G-1.2 AI golden set valid on both providers** (section 16.2) |
 | 2 (W3-4) | SOS + `accept_sos` RPC + district Realtime, case creation, checklist templates + instantiation, `submit_triage` + Worker `/v1/ai/triage`, checklist UI states | Concurrent-accept test green; triage template-membership filter tested |
 | 3 (W5-6) | Hearings + timeline + amendments, Worker `/v1/ai/summarize` + `publish_ai_summary` + PIN, invoices + payments + PDF route, Edge Functions (FCM, crons incl. `annual_reverify_reminder`) | Draft-invisibility RLS test green; PIN lockout test green |
 | 4 (W7-8) | Offline sync engine + conflict UI, responsive web layout, section 8.8 accessibility pass, admin verification + audit views, Android release + Pages deploy | **G-4.1 20-step pilot script**, **G-4.2 hybrid AI switch**, **G-4.3 RLS live demo** (section 16.3) |
@@ -1820,9 +1830,9 @@ Gates are pass/fail and block the next phase. A failing gate is treated as a def
 |---|---|---|---|
 | **IM-1/2/3** | Before Sprint 1 | Sprint 1 kickoff | TRD sections updated (done here); migration + widget/test entries added in Sprint 1 |
 | **G-1.1** RLS suite | Sprint 1, **day 1** | All feature work | CI log of `db/tests/rls_test.sql` + the 6 assertion outcomes |
-| **G-1.2** AI golden set | Sprint 1, before features | AI feature work | `ai/golden/results/{local,groq}.json` committed |
+| **G-1.2** AI golden set | Sprint 1, before features | AI feature work | `ai/golden/results/{local,huggingface}.json` committed |
 | **G-4.1** Pilot script | Before demo | Faculty demo | Completed 20-step checklist, signed by two team members |
-| **G-4.2** Hybrid AI switch | Before demo | Faculty demo | Screenshots/video of `local` and `groq` runs + `/v1/ai/health` |
+| **G-4.2** Hybrid AI switch | Before demo | Faculty demo | Screenshots/video of `local` and `huggingface` runs + `/v1/ai/health` |
 | **G-4.3** RLS live demo | Before demo | Faculty demo | Four documented denial outcomes (section 16.3) |
 
 ### 16.2 Immediate (pre-Sprint-1) Work and Sprint-1 Gates
@@ -1857,24 +1867,24 @@ Any failure blocks Sprint 1 feature work until fixed, because every later featur
 
 ```bash
 # 1) local provider (offline path used at the demo)
-llama-server -m models/qwen2.5-7b-instruct-q4_k_m.gguf --port 8080 -ngl 99
+python ai/local_server/hf_server.py  # Hugging Face transformers server on port 8080
 cd ai/golden && AI_PROVIDER=local npm run golden      # 30 fixed Bangla inputs
 
 # 2) cloud provider (production path)
-export AI_PROVIDER=groq GROQ_API_KEY=... && npm run golden
+export AI_PROVIDER=huggingface HF_TOKEN=... && npm run golden
 ```
 
 Exit criteria:
 
 | Check | Threshold |
 |---|---|
-| Schema-valid JSON responses | 30/30 on `local` **and** 30/30 on `groq` |
+| Schema-valid JSON responses | 30/30 on `local` **and** 30/30 on `huggingface` |
 | Banned-phrase hits (advice/prediction wording) | 0 on both |
 | Checklist items that are template members | 100% (the template-membership filter must drop anything else) |
 | `case_type` agreement between the two providers | >= 90% of 30 inputs |
 | `fallback_used` flags during a clean run | 0 |
 
-Commit `ai/golden/results/local.json` and `groq.json`. If local Qwen fails the threshold, reduce max context, lower the output length, or fall back to Qwen 2.5-3B - the offline demo path must work, because that is what proves the hybrid architecture (PRD section 8.2).
+Commit `ai/golden/results/local.json` and `huggingface.json`. If the local Qwen model fails the threshold, reduce max context, lower the output length, or fall back to Qwen 2.5-3B - the offline demo path must work, because that is what proves the hybrid architecture (PRD section 8.2).
 
 ### 16.3 Faculty Demo Gates
 
@@ -1893,7 +1903,7 @@ Rehearse the full flow at least twice before the real demo. Each item is pass/fa
 | 7 | AI triage + checklist appears as "Suggested" | items are `suggested_pending_advocate`, disclaimer visible |
 | 8 | Client uploads an FIR photo | document `uploaded`, signed URL works, 15-min expiry set |
 | 9 | Advocate approves/edits the checklist | client sees "Approved by your lawyer" |
-| 10 | AI outage drill: stop llama.cpp, re-run triage | template output + "AI is busy" note; the flow is not blocked |
+| 10 | AI outage drill: stop hf_server.py, re-run triage | template output + "AI is busy" note; the flow is not blocked |
 | 11 | Advocate logs a hearing | hearing stored with `published_at` null |
 | 12 | Advocate publishes the hearing | client timeline shows it |
 | 13 | Client taps "Request update" twice in a row | the second call is deduped (1 per 24 h) |
@@ -1905,7 +1915,7 @@ Rehearse the full flow at least twice before the real demo. Each item is pass/fa
 | 19 | Offline drill: airplane mode -> browse case -> add a note -> reconnect | queued badge -> "All changes saved"; server row matches |
 | 20 | Admin force-publish with a reason | published with `published_by='admin_override'` and an audit row |
 
-**G-4.2 - Hybrid AI switch demo.** With the app running and a case open, switch `AI_PROVIDER` from `local` to `groq` (and back) and re-run triage and summary each time. Pass condition: identical JSON schema and identical checklist template membership on both providers, a different `model` value in each stored row, `/v1/ai/health` reporting the active provider, and the `fallback_used` flag visible from step 10. A video capture of both runs is the evidence.
+**G-4.2 - Hybrid AI switch demo.** With the app running and a case open, switch `AI_PROVIDER` from `local` to `huggingface` (and back) and re-run triage and summary each time. Pass condition: identical JSON schema and identical checklist template membership on both providers, a different `model` value in each stored row, `/v1/ai/health` reporting the active provider, and the `fallback_used` flag visible from step 10. A video capture of both runs is the evidence.
 
 **G-4.3 - RLS enforcement demo.** Log in as the seeded second client (client B) and attempt four reads live, in front of the panel:
 
@@ -1918,7 +1928,7 @@ Rehearse the full flow at least twice before the real demo. Each item is pass/fa
 
 This is the most persuasive security demonstration for a legal-tech panel and the direct proof of PRD section 16 criterion 4.
 
-**Demo-day freeze:** tag the release, keep the previous APK downloadable, re-run the RLS suite the morning of the demo, pre-warm the llama.cpp server so the offline demo does not stutter on first load, and keep a pre-recorded fallback video of G-4.2/G-4.3 in case of venue network failure.
+**Demo-day freeze:** tag the release, keep the previous APK downloadable, re-run the RLS suite the morning of the demo, pre-warm the HF transformers server (hf_server.py) so the offline demo does not stutter on first load, and keep a pre-recorded fallback video of G-4.2/G-4.3 in case of venue network failure.
 
 ## 17. Architecture Decision Records (ADRs)
 
@@ -1929,7 +1939,7 @@ This is the most persuasive security demonstration for a legal-tech panel and th
 | ADR-003 | RLS as the primary authorization layer | App-level checks; API gateway checks | Untrusted clients cannot bypass; testable in CI; survives new client surfaces |
 | ADR-004 | Postgres RPC for atomic operations | Client-side multi-call orchestration | `accept_sos`, publish, and invoice numbering must be single-transaction |
 | ADR-005 | Human-in-the-Loop publish model | Fully automated AI posting to clients | Legal liability (PRD 8.4); enforced by RLS so it cannot be bypassed |
-| ADR-006 | Hybrid AI (Groq + local llama.cpp) behind one Worker | Groq only; local only | Cloud speed in production + a genuinely offline faculty demo; no vendor lock-in |
+| ADR-006 | Hybrid AI (HF Serverless + local HF transformers) behind one Worker | HF Serverless only; local only | Cloud speed in production + a genuinely offline faculty demo; single vendor for weights, no paid lock-in |
 | ADR-007 | Cloudflare Worker as the AI gateway | Direct client-to-LLM calls; Supabase Edge Function only | PII redaction, KV caching, shared rate limiting; keeps the provider key off the client |
 | ADR-008 | Hive for the client cache | SQLite (sqflite/drift) | Works on web without native code; adequate for our access patterns |
 | ADR-009 | Riverpod for state | BLoC, Provider | Compile-time safety, testability, less boilerplate for a 4-person team |
@@ -1939,12 +1949,13 @@ This is the most persuasive security demonstration for a legal-tech panel and th
 | ADR-013 | Additive-only migrations per release | Destructive migrations with code rollback | Keeps rollback possible without a schema rollback |
 | ADR-014 | No public win-rate ranking | Rating/win-rate marketplace | Defamation risk and unreliable outcome data (PRD F2) |
 | ADR-015 | Soft delete + tombstones | Hard delete | Audit integrity and offline sync correctness |
+| ADR-016|Composition root `lib/app/di.dart` as the single layer-rule exemption; `accept_sos` realtime-only (never outbox-queued)|Per-feature DI files; outbox-queued accepts|One auditable exemption point; avoids an optimistic accept that flips to failed after a lost race|
 
 ## 18. Technical Risks and Debt Register
 
 | # | Risk / debt | Impact | Mitigation / trigger to fix |
 |---|---|---|---|
-| 1 | Free-tier ceilings (Supabase storage, Realtime concurrency, Groq quota) | Feature degradation at pilot scale | Usage alerts at 80%; R2 overflow ready; paid tier at 500+ users |
+| 1 | Free-tier ceilings (Supabase storage, Realtime concurrency, HF Serverless rate limits) | Feature degradation at pilot scale | Usage alerts at 80%; R2 overflow ready; paid tier at 500+ users |
 | 2 | RLS policy complexity / recursive policy bugs | Security or availability incident | Helper functions + CI isolation suite on every `db/**` change |
 | 3 | Manual Bar Council verification does not scale | Onboarding backlog | 48h SLA + queue dashboard; AI OCR verification planned (P2) |
 | 4 | AI output quality for Bangla legal phrasing | Poor summaries reduce trust | Prompt versioning + golden set + advocate review loop (HITL is the safety net) |
@@ -1953,7 +1964,7 @@ This is the most persuasive security demonstration for a legal-tech panel and th
 | 7 | Web build fidelity for Bangla fonts | Rendering issues on low-end browsers | Bundle a subset Bangla font; avoid system-font dependence |
 | 8 | Real-world court data has no API | Data completeness depends on advocates | Voice-first entry + clerk mode (P2); OCR of court orders (P2) |
 | 9 | Team of 4 with no dedicated QA | Defects reach pilot | Automated gates (RLS + golden set + widget tests) and a manual 20-step script |
-| 10 | Local llama.cpp on 6 GB VRAM | Demo stutter | Qwen 2.5-7B Q4_K_M, limited context, `-ngl 99`; smaller 3B model as fallback |
+| 10 | Local HF transformers server on 6 GB VRAM | Demo stutter | Qwen 2.5-3B in 4-bit via hf_server.py, limited context; pre-warm before demo as fallback |
 
 ## 19. Traceability: PRD Requirement -> Technical Artifact
 
@@ -1987,7 +1998,7 @@ To solve the "Cold Start Problem" (an empty app during the faculty demo and init
 |---|---|---|---|
 | `advocates` | Supreme Court / Bar Council public directories | BeautifulSoup (Python) | Bulk insert. Set `verification = 'pending'`. Visible in search, but cannot accept SOS until claimed/verified. |
 | `hearings` | Public "Cause Lists" (Past 6 months) from court websites | PyPDF2 / BeautifulSoup | Bulk insert into `hearings` linked to seeded demo `cases`. Creates a rich, historical timeline for the demo. |
-| `legal_knowledge_base` | `bdlaws.minlaw.gov.bd` (Core Acts) | LangChain WebBaseLoader | Chunk, embed (bge-m3), and insert into `pgvector` for the RAG chatbot. (See Section 7.4) |
+| `legal_knowledge_base` | `Hugging Face Dataset (sakhadib/Bangladesh-Legal-Acts-Dataset)` | Hugging Face datasets library | Chunk, embed (bge-m3), and insert into `pgvector` for the RAG chatbot. (See Section 7.4) |
 
 **20.2 Execution Pipeline**
 
@@ -2017,7 +2028,7 @@ If asked about data sourcing: *"Sir/Ma'am, because Bangladesh lacks a live court
 | Tombstone | Soft-delete marker propagated during sync |
 | Delta pull | Fetching only rows where `updated_at > last_sync_ts` |
 | JWKS | Public keys used to verify Supabase JWTs at the edge |
-| `AI_PROVIDER` | Env switch selecting `groq` (cloud) or `local` (llama.cpp) |
+| `AI_PROVIDER` | Env switch selecting `huggingface` (cloud) or `local` (HF transformers server) |
 
 ---
 *Companion to `D:\LegalLink\prd.md` (v2.0). This TRD covers architecture (C4 L1-L3), stack with versions, full data design with RLS and RPCs, API surface (PostgREST, Worker, Realtime), AI subsystem with prompts/schemas/guardrails, Flutter client and offline sync design, accessibility implementation, security and threat model, NFRs with budgets, DevOps/CI-CD, observability, testing, tool inventory, setup, build order with pass/fail readiness gates (immediate, Sprint 1, faculty demo), 15 ADRs, risk register, and PRD-to-technical traceability.*

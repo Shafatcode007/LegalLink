@@ -7,7 +7,7 @@
 | **Version** | 2.0 (revised after critical-flaw review: state machines, HITL escape hatch, offline sync rules, failure modes, rate limits, verification SLA, accessibility, retention, KPIs, testing, deployment, monitoring) |
 | **Status** | MVP requirements - approved for implementation |
 | **Target market** | Bangladesh |
-| **Cost constraint** | $0/month - free tiers only (Supabase, Cloudflare, Groq free tier, local AI) |
+| **Cost constraint** | $0/month - free tiers only (Supabase, Cloudflare, Hugging Face free tier, local AI) |
 | **Team** | 4 developers (Backend/DB, Frontend/UI, AI & Business Logic, Admin & Ops) |
 | **Timeline** | 8 weeks to MVP |
 
@@ -259,15 +259,15 @@ SOS: open --accept--> accepted --create--> case created
 
 ### 8.2 Hybrid AI Architecture (Required)
 - One `AIService` interface inside the Flutter app; the backend is chosen by `.env` (`AI_PROVIDER`).
-- `AI_PROVIDER=production` -> **Groq API (Llama 3)**, OpenAI-compatible endpoint, free tier.
-- `AI_PROVIDER=local` -> **llama.cpp server** running **Qwen 2.5-7B GGUF (Q4_K_M)** on `localhost:8080` (dev machine: ASUS TUF A15, RTX 4050 6GB VRAM).
+- `AI_PROVIDER=production` -> **Hugging Face Serverless Inference API (e.g., Qwen 2.5-7B)**, OpenAI-compatible endpoint, free tier.
+- `AI_PROVIDER=local` -> **Hugging Face transformers local server** running **Qwen 2.5-3B (or custom fine-tuned model)** on `localhost:8080` (dev machine: ASUS TUF A15, RTX 4050 6GB VRAM).
 - Same prompts and same JSON schemas on both backends - switching is a URL change; no app code changes.
 - All LLM calls pass through a **Cloudflare Worker** that performs **PII redaction** (names, NID numbers) before the text reaches any model.
 - Extraction/triage calls use strict JSON schema output (`response_format: json_object`) and temperature <= 0.2.
 - **AI failure fallback:** if the LLM call fails or times out (> 30 s), the user is shown the rule-based template output (no AI) with a note; the request is retried once in the background. AI features must never hard-block the core flow.
 
 ### 8.3 RAG Knowledge Base (Chatbot, P1)
-- Sources: 15-20 key Bangladesh laws from `bdlaws.minlaw.gov.bd` (Penal Code, CrPC, Evidence Act, Muslim Family Law Act, Labor Act, Women & Child Act, etc.).
+- Sources: `sakhadib/Bangladesh-Legal-Acts-Dataset` from Hugging Face (filtered to 15-20 core acts for MVP).
 - Cleaning: strip HTML, fix Bangla Unicode, anonymize names.
 - Chunking: 300-500 word sections -> target 2,000-5,000 searchable chunks.
 - Embeddings: `BAAI/bge-m3` (local, free, excellent Bangla support) -> Supabase **pgvector** table `legal_knowledge_base`.
@@ -284,8 +284,8 @@ SOS: open --accept--> accepted --create--> case created
 
 | Area | Requirement |
 |---|---|
-| **Cost** | $0/month for MVP: Supabase free tier (Postgres, Auth, Realtime, 1 GB Storage, pgvector), Cloudflare Workers/Pages free tier, Groq free tier, local AI. |
-| **Performance** | Must run on low-end Android (2 GB RAM). Targets: APK < 50 MB; cold start < 3 s; page load < 2 s on 3G; API p95 < 500 ms; advocate-search queries < 100 ms; support 500 simultaneous active sessions on free tiers. Heavy AI NEVER runs in Flutter memory - offloaded to Cloudflare/Groq or the local llama.cpp server. |
+| **Cost** | $0/month for MVP: Supabase free tier (Postgres, Auth, Realtime, 1 GB Storage, pgvector), Cloudflare Workers/Pages free tier, Hugging Face free tier, local AI. |
+| **Performance** | Must run on low-end Android (2 GB RAM). Targets: APK < 50 MB; cold start < 3 s; page load < 2 s on 3G; API p95 < 500 ms; advocate-search queries < 100 ms; support 500 simultaneous active sessions on free tiers. Heavy AI NEVER runs in Flutter memory - offloaded to the Cloudflare Worker (HF Serverless) or the local HF transformers server. |
 | **Offline** | Core read flows (case timeline, checklists, documents) work offline via Hive cache; mutations queue in `offline_sync_queue` (rules in F8). |
 | **Security (5 layers)** | 1) TLS in transit; 2) Phone OTP + JWT (15-min access / 7-day refresh, role claim); 3) RLS on **every** table (client sees only own cases, advocate only assigned, admin sees all but every admin action is logged); 4) AES-256 at rest + 15-minute expiring signed URLs for sensitive documents; 5) immutable audit trail for every sensitive action. |
 | **Privacy** | Explicit consent record (client -> advocate, scoped, revocable) before case data is shared; access revoked when the engagement ends; case data treated as highly sensitive. |
@@ -337,8 +337,8 @@ Extension tables (P1+): `reviews`, `complaints`, `consultation_bookings`, `legal
 | Local cache | **Hive** | Fast, no native code, works on web |
 | Backend | **Supabase** (Postgres, Auth, Realtime, Storage, pgvector, RLS) | Zero cost; RLS = zero-trust authorization |
 | Edge / AI gateway | **Cloudflare Workers** (free tier) | PII redaction, AI caching, rate limits, invoice PDF rendering |
-| AI (production) | **Groq API - Llama 3** (OpenAI-compatible) | Free tier, ~500 tok/s |
-| AI (local demo) | **llama.cpp + Qwen 2.5-7B GGUF** on RTX 4050 | Offline faculty demo, no vendor lock-in |
+| AI (production) | **Hugging Face Serverless API - Qwen 2.5-7B** (OpenAI-compatible) | Free tier, ~500 tok/s |
+| AI (local demo) | **Hugging Face transformers server + Qwen 2.5-3B (or fine-tune)** on RTX 4050 | Offline faculty demo, no vendor lock-in |
 | Embeddings | **bge-m3** (local) | Free, excellent Bangla |
 | Notifications | **Firebase Cloud Messaging** (free) | Android push; web in-app + toast |
 | CI/CD | **GitHub Actions** -> Cloudflare Pages (web) + signed APK (Android) | Free, reproducible releases |
@@ -378,8 +378,8 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 
 | Failure | User sees | System behavior |
 |---|---|---|
-| Groq API down / rate-limited | "AI is busy - showing standard list/summary" | Retry once in 60 s; fall back to rule-based template (checklist) or plain formatted text (summary draft); core flows never blocked |
-| Local llama.cpp unavailable | Same as above | Router detects no `localhost:8080` and reports AI-off mode; app degrades gracefully |
+| Hugging Face Serverless down / rate-limited | "AI is busy - showing standard list/summary" | Retry once in 60 s; fall back to rule-based template (checklist) or plain formatted text (summary draft); core flows never blocked |
+| Local HF transformers server unavailable | Same as above | Router detects no `localhost:8080` and reports AI-off mode; app degrades gracefully |
 | LLM output invalid JSON / fails schema | Nothing wrong visible | Discard, retry once with stricter prompt; then template fallback + log |
 | FCM push fails | Data is still in the app | Push is best-effort; in-app timeline is the source of truth; delivery failure logged, retried 3x |
 | Supabase Realtime disconnects | "You are offline - showing cached data" badge | Reconnect with exponential backoff; on reconnect, full delta fetch of subscribed tables |
@@ -407,7 +407,7 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 
 1. **Complete live flow:** SOS -> advocate accepts -> case created -> AI checklist generated ("Suggested") -> advocate approves checklist -> hearing logged -> AI Bangla summary drafted -> advocate signs with PIN -> client sees it on phone while the advocate works from the web.
 2. **Offline demo:** airplane-mode on the phone, browse case, log an update, reconnect, watch it sync.
-3. **Hybrid AI demo:** run `AI_PROVIDER=local` (Qwen 2.5-7B, no internet) and `AI_PROVIDER=production` (Groq) with the same code; then demo the AI-down fallback (template output).
+3. **Hybrid AI demo:** run `AI_PROVIDER=local` (Qwen 2.5-3B via hf_server.py, no internet) and `AI_PROVIDER=production` (Hugging Face Serverless) with the same code; then demo the AI-down fallback (template output).
 4. **Security proof:** demonstrate an RLS policy blocking one client from reading another client's case.
 5. **Abuse proof:** show the SOS rate limit and PIN lockout in action.
 6. All 8 MVP features work end-to-end on **both** Web and Android.
@@ -424,7 +424,7 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 | Data extortion / ransomware | RLS, signed URLs, minimal PII in LLM calls, immutable audit logs, encrypted storage |
 | Scope creep | Only 8 features in MVP; everything else parked in section 7 backlog |
 | Low-end hardware (2 GB RAM phones) | Lightweight Flutter app, all AI off-device, aggressive caching |
-| Free-tier limits (Supabase/Cloudflare/Groq) | Rate limits (section 13), AI caching in Workers, usage monitoring; scale plan documented |
+| Free-tier limits (Supabase/Cloudflare/Hugging Face) | Rate limits (section 13), AI caching in Workers, usage monitoring; scale plan documented |
 
 ## 18. Out of Scope (MVP)
 
@@ -449,7 +449,7 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 - **Unit (every PR):** Dart unit tests for domain entities and use cases (TDD: RED -> GREEN -> REFACTOR).
 - **Widget tests:** critical screens (SOS form, checklist, timeline, PIN publish) on both form factors.
 - **Integration:** Supabase local (Docker) + RLS policy tests - a dedicated suite asserts every "client A cannot read client B" boundary.
-- **AI golden set:** 30 fixed Bangla inputs with expected JSON schemas; run on Groq and local Qwen in a manual CI check; block merge on schema failure.
+- **AI golden set:** 30 fixed Bangla inputs with expected JSON schemas; run on Hugging Face Serverless and the local HF transformers server in a manual CI check; block merge on schema failure.
 - **Manual checklist:** 20-item pilot test script covering the demo-day flow, offline flow, and abuse limits.
 - **Load sanity:** 50 concurrent realtime subscribers on a case channel without dropped events (free-tier smoke test).
 

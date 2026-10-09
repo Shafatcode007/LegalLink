@@ -29,7 +29,7 @@
 3. **Pre-hire readiness** - AI case triage plus a smart document checklist stops wasted court trips.
 4. **Trust** - admin-verified advocates (Bar Council credentials), moderated reviews, immutable audit logs.
 
-**The constraint that shaped every decision.** The entire stack runs at **$0/month** on free tiers (Supabase, Cloudflare, Groq, GitHub Actions) with local AI tooling, until the pilot proves retention (PRD §15).
+**The constraint that shaped every decision.** The entire stack runs at **$0/month** on free tiers (Supabase, Cloudflare, Hugging Face Serverless, GitHub Actions) with local AI tooling, until the pilot proves retention (PRD §15).
 
 ---
 
@@ -64,17 +64,17 @@ One codebase, two form factors. Flutter for Web and Android, Supabase Postgres a
 | **Edge / AI** | Cloudflare Workers | `llm-gateway` route namespace `/v1/*`; PII redaction before any LLM call |
 | | Cloudflare KV | Caches deterministic AI responses by input hash, TTL 24h |
 | | Cloudflare Pages | Flutter Web build output, auto SSL, global CDN |
-| **AI Models** | Groq API - `llama-3.x` | Production LLM. OpenAI-compatible `/chat/completions`, JSON mode |
-| | llama.cpp + Qwen 2.5-7B GGUF (Q4_K_M) | Local/offline LLM at `localhost:8080`, OpenAI-compatible |
+| **AI Models** | Hugging Face Serverless - `qwen2.5-7b-instruct` | Production LLM. OpenAI-compatible `/chat/completions`, JSON mode |
+| | HF transformers server + Qwen 2.5-3B | Local/offline LLM at `localhost:8080`, OpenAI-compatible |
 | | `BAAI/bge-m3` via Python/ONNX | Embeddings for RAG (build time), `vector(1024)` in `pgvector` |
 
 ### Environments
 
 | Env | Supabase | Worker | `AI_PROVIDER` | Purpose |
 |---|---|---|---|---|
-| `local` | `supabase start` (Docker) | `wrangler dev` | `local` (llama.cpp) | Daily development, fully offline |
-| `staging` | Separate free project | `wrangler deploy --env staging` | `groq` | PR previews, RLS tests, demo rehearsal |
-| `prod` | Main free project | `wrangler deploy --env prod` | `groq` | Pilot users |
+| `local` | `supabase start` (Docker) | `wrangler dev` | `local` (HF transformers server) | Daily development, fully offline |
+| `staging` | Separate free project | `wrangler deploy --env staging` | `huggingface` | PR previews, RLS tests, demo rehearsal |
+| `prod` | Main free project | `wrangler deploy --env prod` | `huggingface` | Pilot users |
 
 ---
 
@@ -84,10 +84,10 @@ One codebase, two form factors. Flutter for Web and Android, Supabase Postgres a
 
 All AI access goes through a single `AIService` interface. The `AI_PROVIDER` environment variable selects the backend:
 
-- `AI_PROVIDER=groq` → `https://api.groq.com/openai/v1/chat/completions`
+- `AI_PROVIDER=huggingface` → `https://router.huggingface.co/v1/chat/completions`
 - `AI_PROVIDER=local` → `http://localhost:8080/v1/chat/completions`
 
-Both are OpenAI-compatible, so **prompts, JSON schemas, and app code do not change** when switching. This is what makes the offline demo possible: with `AI_PROVIDER=local` the entire demo runs against llama.cpp on a laptop. Every AI feature also has a rule-based fallback path, because **AI must never block the core flow** - if the LLM is down, SOS, tracking, and billing still work.
+Both are OpenAI-compatible, so **prompts, JSON schemas, and app code do not change** when switching. This is what makes the offline demo possible: with `AI_PROVIDER=local` the entire demo runs against the HF transformers server on a laptop. Every AI feature also has a rule-based fallback path, because **AI must never block the core flow** - if the LLM is down, SOS, tracking, and billing still work.
 
 ### Human-in-the-Loop (HITL)
 
@@ -136,7 +136,7 @@ This is an academic project. Contributions are from the 4-person team plus facul
 - **Read first:** `docs/prd.md` (what we build) and `docs/trd.md` (how we build it). Most design questions are already answered there - please check before opening an issue.
 - **Migrations:** `expand → migrate → contract`. Never edit an already-applied migration.
 - **Before pushing:** `flutter analyze`, `dart format`, and `sqlfluff` must be clean. CI runs analyze, tests (60% coverage gate), the RLS assertion suite, and the 30-input golden AI set.
-- **Never commit secrets.** `.env`, service-role keys, and the Groq/FCM keys live in GitHub Secrets / Supabase Vault. `.gitignore` already covers `.env`, `*.gguf`, `*.onnx`, and `*.bin`.
+- **Never commit secrets.** `.env`, service-role keys, and the Hugging Face/FCM keys live in GitHub Secrets / Supabase Vault. `.gitignore` already covers `.env`, `*.gguf`, `*.onnx`, and `*.bin`.
 - **RLS changes are security changes.** Any new table needs its policies and assertions in `db/tests/rls_test.sql` in the same PR.
 
 ---
