@@ -152,12 +152,11 @@ values
 -- Per-case instances for the bail case: first item approved, rest pending.
 insert into checklist_items (case_id, template_id, item_name_bn, importance, status, approved_by, approved_at)
 select '33333333-3333-3333-3333-333333333301', t.id, t.item_name_bn, t.importance,
-       case when t.sort_order = 1 then 'approved' else 'suggested_pending_advocate' end,
-       case when t.sort_order = 1 then '11111111-1111-1111-1111-111111111201' else null end,
+       (case when t.sort_order = 1 then 'approved' else 'suggested_pending_advocate' end)::checklist_state,
+       (case when t.sort_order = 1 then '11111111-1111-1111-1111-111111111201' else null end)::uuid,
        case when t.sort_order = 1 then now() else null end
   from checklist_templates t
  where t.case_type = 'bail';
-
 commit;
 
 -- Seed complete. Expected: 7 auth users, 7 profiles, 3 advocates (2 verified
