@@ -43,6 +43,13 @@
 | **F4** | AI Case Triage + Smart Document Checklist | Plain-Bangla situation overview plus an AI-suggested document checklist the advocate reviews and approves before it is treated as final. |
 | **F5** | Case Overview & Timeline - Situation Tracker | A case timeline and situation tracker so the client sees hearings, dates, and status at a glance. |
 | **F6** | AI Case Summary in Bangla - Human-in-the-Loop | AI drafts a plain-Bangla summary of events and next hearing date; the advocate edits and signs off with a 4-digit PIN before the client ever sees it. |
+| **F7** | Advocate Invoice & Billing | Itemised invoices and PDF generation with transparent totals, so fees are visible to the client. |
+| **F8** | Cross-Device Sync - Chamber + Court | One product, two form factors: a case updated in the chamber is visible in court in real time (shared auth, shared data, Realtime). |
+
+Four of these - **F4, F5, F6, F8** - are marked as mandatory faculty requirements (PRD §5), alongside the AI component, the post-SOS document checklist, the case overview system, and combined App + Web builds.
+
+> **On rankings:** there is deliberately **no public win-rate ranking** (defamation/legal risk). Ranking uses verified experience, case-type match, court, fee fit, and professionalism/punctuality feedback only.
+
 ---
 
 ## 3. Architecture & Tech Stack
@@ -93,20 +100,38 @@ Both are OpenAI-compatible, so **prompts, JSON schemas, and app code do not chan
 
 **The AI never communicates directly with the client.** For F6:
 
+1. The advocate enters raw hearing notes (text or Bangla voice dictation).
+2. The AI drafts a plain-Bangla summary covering **events and the next hearing date only** - never legal advice, never an outcome prediction.
+3. The draft is stored with status `draft` and is **invisible to the client, enforced by database RLS, not by hiding a UI element**.
+4. The advocate may edit the draft, then signs off with their **4-digit PIN** (stored hashed, never in plain text).
+5. On publish: status → `published`, a real-time broadcast fires, and the client receives a push notification.
+
+Escape hatches prevent orphaned drafts: an unpublished draft auto-archives after **7 days**, and the client sees "your lawyer has not posted an update yet". Every summary is logged with the model used, prompt version, tokens used, draft text, final text, and approver ID.
+
+### Zero-Trust Security
+
+Authorization lives in **Postgres Row-Level Security**, not in the UI. The client is never trusted, and there is no "security by UI hiding" - a caller who hits the API directly is subject to exactly the same policies. Supporting principles:
+
+- **P1** Zero-trust authorization at the database - all access control lives in RLS.
+- **P2** Single source of truth - Hive is a cache and offline queue, never authoritative.
+- **P9** Auditability by default - every sensitive mutation writes an append-only `audit_logs` row.
+- **P8** Fail loud, fail safe - RLS rejections and quota breaches surface to the user; no silent data loss.
+
 ---
 
 ## 5. Repository Structure (Monorepo)
 
-Planned layout per TRD §11.1. Only `docs/` and `Design/` exist today; the remaining directories are built out as the team starts each tier.
+Layout per TRD §11.1. `docs/`, `Design/`, `db/`, and `supabase/` exist today; the remaining directories are built out as the team starts each tier.
 
 ```text
 LegalLink/
 ├── apps/legal_link/          # Flutter app (web + android targets)
 ├── edge/worker/              # Cloudflare Worker (llm-gateway) + prompt files
 ├── edge/functions/           # Supabase Edge Functions (Deno/TS)
-├── db/migrations/            # SQL migrations (supabase CLI)
+├── db/migrations/            # SQL migrations 001-018 (source of truth)
 ├── db/seed.sql               # Checklist templates + demo data
-├── db/tests/rls_test.sql     # RLS assertions run in CI
+├── db/tests/rls_test.sql     # HITL RLS assertion suite (green locally)
+├── supabase/                 # Supabase CLI local project (config.toml + migration copies)
 ├── ai/                       # RAG build scripts + golden set
 ├── docs/                     # prd.md, trd.md, diagrams
 ├── Design/                   # UI/UX mockups and design assets
@@ -138,6 +163,15 @@ This is an academic project. Contributions are from the 4-person team plus facul
 - **Before pushing:** `flutter analyze`, `dart format`, and `sqlfluff` must be clean. CI runs analyze, tests (60% coverage gate), the RLS assertion suite, and the 30-input golden AI set.
 - **Never commit secrets.** `.env`, service-role keys, and the Hugging Face/FCM keys live in GitHub Secrets / Supabase Vault. `.gitignore` already covers `.env`, `*.gguf`, `*.onnx`, and `*.bin`.
 - **RLS changes are security changes.** Any new table needs its policies and assertions in `db/tests/rls_test.sql` in the same PR.
+- **Phase 2 local gate (must pass before merging DB work):**
+
+  ```bash
+  supabase start                                   # local Postgres/Auth/Storage via Docker
+  supabase db push                                 # apply db/migrations (18-step chain)
+  psql "$LOCAL_DB_URL" -f db/seed.sql              # demo fixtures
+  psql -v ON_ERROR_STOP=1 "$LOCAL_DB_URL" -f db/tests/rls_test.sql
+  # expect: *** ALL HITL RLS TESTS PASSED ***
+  ```
 
 ---
 
@@ -154,25 +188,3 @@ This is an academic project. Contributions are from the 4-person team plus facul
 [Report an issue](https://github.com/Shafatcode007/LegalLink/issues) · [View source](https://github.com/Shafatcode007/LegalLink)
 
 </div>
-1. The advocate enters raw hearing notes (text or Bangla voice dictation).
-2. The AI drafts a plain-Bangla summary covering **events and the next hearing date only** - never legal advice, never an outcome prediction.
-3. The draft is stored with status `draft` and is **invisible to the client, enforced by database RLS, not by hiding a UI element**.
-4. The advocate may edit the draft, then signs off with their **4-digit PIN** (stored hashed, never in plain text).
-5. On publish: status → `published`, a real-time broadcast fires, and the client receives a push notification.
-
-Escape hatches prevent orphaned drafts: an unpublished draft auto-archives after **7 days**, and the client sees "your lawyer has not posted an update yet". Every summary is logged with the model used, prompt version, tokens used, draft text, final text, and approver ID.
-
-### Zero-Trust Security
-
-Authorization lives in **Postgres Row-Level Security**, not in the UI. The client is never trusted, and there is no "security by UI hiding" - a caller who hits the API directly is subject to exactly the same policies. Supporting principles:
-
-- **P1** Zero-trust authorization at the database - all access control lives in RLS.
-- **P2** Single source of truth - Hive is a cache and offline queue, never authoritative.
-- **P9** Auditability by default - every sensitive mutation writes an append-only `audit_logs` row.
-- **P8** Fail loud, fail safe - RLS rejections and quota breaches surface to the user; no silent data loss.
-| **F7** | Advocate Invoice & Billing | Itemised invoices and PDF generation with transparent totals, so fees are visible to the client. |
-| **F8** | Cross-Device Sync - Chamber + Court | One product, two form factors: a case updated in the chamber is visible in court in real time (shared auth, shared data, Realtime). |
-
-Four of these - **F4, F5, F6, F8** - are marked as mandatory faculty requirements (PRD §5), alongside the AI component, the post-SOS document checklist, the case overview system, and combined App + Web builds.
-
-> **On rankings:** there is deliberately **no public win-rate ranking** (defamation/legal risk). Ranking uses verified experience, case-type match, court, fee fit, and professionalism/punctuality feedback only.
