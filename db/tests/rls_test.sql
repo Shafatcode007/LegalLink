@@ -544,5 +544,91 @@ begin
 end $$;
 
 -- =====================================================================
+-- Verification RPCs: submit_verification / admin_decide
+-- =====================================================================
+-- Test as client_a (role = 'client')
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text, true);
+
+do $$
+declare
+  v_row advocates;
+  v_role user_role;
+begin
+  -- 1) Client cannot submit verification (not an advocate role)
+  begin
+    perform submit_verification('B-1003');
+    raise exception 'SECURITY BREACH: client submit_verification not rejected';
+  exception when others then
+    if sqlerrm not like '%caller must have advocate role%' then
+      raise exception 'SECURITY BREACH: unexpected message: %', sqlerrm;
+    end if;
+    raise notice 'PASS submit_verification: client rejected';
+  end;
+
+  -- 2) Advocate with invalid 3-digit PIN rejected
+  execute 'set local role authenticated;';
+  perform set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
+  begin
+    perform submit_verification('B-1001', p_pin => '123');
+    raise exception 'SECURITY BREACH: short PIN not rejected';
+  exception when others then
+    if sqlerrm not like '%pin_must_be_4_digits%' then
+      raise exception 'SECURITY BREACH: unexpected message: %', sqlerrm;
+    end if;
+    raise notice 'PASS submit_verification: short PIN rejected';
+  end;
+
+  -- 3) Advocate submits verification -> row with verification = 'pending'
+  begin
+    select * into v_row from submit_verification('B-1009');
+  exception when others then
+    raise exception 'SECURITY BREACH: advocate submit_verification failed: %', sqlerrm;
+  end;
+  if v_row.verification <> 'pending' then
+    raise exception 'SECURITY BREACH: verification not pending (got %)', v_row.verification;
+  end if;
+  raise notice 'PASS submit_verification: advocate row verification = pending';
+
+  -- 4) Client cannot call admin_decide
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text, true);
+  begin
+    perform admin_decide('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'verified');
+    raise exception 'SECURITY BREACH: client admin_decide not rejected';
+  exception when others then
+    if sqlerrm not like '%forbidden: admin privileges required%' then
+      raise exception 'SECURITY BREACH: unexpected message: %', sqlerrm;
+    end if;
+    raise notice 'PASS admin_decide: client rejected';
+  end;
+
+  -- 5) Admin reject with null reason rejected
+  execute 'set local role authenticated;';
+  perform set_config('request.jwt.claims', json_build_object('sub', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'role', 'authenticated')::text, true);
+  begin
+    perform admin_decide('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'rejected', null);
+    raise exception 'SECURITY BREACH: reject without reason not rejected';
+  exception when others then
+    if sqlerrm not like '%rejection_reason_required%' then
+      raise exception 'SECURITY BREACH: unexpected message: %', sqlerrm;
+    end if;
+    raise notice 'PASS admin_decide: reject without reason rejected';
+  end;
+
+  -- 6) Admin verify -> verification = 'verified', verified_at not null
+  begin
+    select * into v_row from admin_decide('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'verified');
+  exception when others then
+    raise exception 'SECURITY BREACH: admin verify failed: %', sqlerrm;
+  end;
+  if v_row.verification <> 'verified' or v_row.verified_at is null then
+    raise exception 'SECURITY BREACH: verify did not persist (verification=%, verified_at=%)',
+      v_row.verification, v_row.verified_at;
+  end if;
+  raise notice 'PASS admin_decide: verified + verified_at set';
+end $$;
+
+-- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'
