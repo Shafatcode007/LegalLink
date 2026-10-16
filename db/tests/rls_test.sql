@@ -39,7 +39,8 @@ begin
          (v_client_b, 'authenticated', 'authenticated', 'client_b@test.local', 'x', now()),
          (v_adv_a,    'authenticated', 'authenticated', 'adv_a@test.local',    'x', now()),
          (v_adv_b,    'authenticated', 'authenticated', 'adv_b@test.local',    'x', now()),
-         (v_admin,    'authenticated', 'authenticated', 'admin@test.local',    'x', now())
+         (v_admin,    'authenticated', 'authenticated', 'admin@test.local',    'x', now()),
+       ('00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'client_x@test.local', 'x', now())
   on conflict (id) do nothing;
 
   insert into profiles (id, role, phone) values
@@ -505,6 +506,41 @@ begin
       raise exception 'F-7 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
     end if;
   end;
+end $$;
+
+-- =====================================================================
+-- complete_signup role guard: client must not self-assign 'admin'
+-- =====================================================================
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+do $$
+declare
+  v_role user_role;
+begin
+  -- 1) Client must NOT be able to self-assign 'admin'
+  begin
+    perform complete_signup('admin'::user_role, 'Malicious Admin', 'bn');
+    raise exception 'SECURITY BREACH: admin self-assignment was not rejected';
+  exception when others then
+    if sqlerrm not like '%forbidden_role_assignment%' then
+      raise exception 'SECURITY BREACH: unexpected rejection message: %', sqlerrm;
+    end if;
+    raise notice 'PASS complete_signup: admin self-assignment rejected';
+  end;
+
+  -- 2) Client CAN self-assign 'advocate'
+  begin
+    perform complete_signup('advocate'::user_role, 'Valid Advocate', 'bn');
+  exception when others then
+    raise exception 'SECURITY BREACH: advocate self-assignment rejected: %', sqlerrm;
+  end;
+
+  select role into v_role from profiles where id = '00000000-0000-0000-0000-000000000001';
+  if v_role <> 'advocate' then
+    raise exception 'SECURITY BREACH: advocate role not persisted (got %)', v_role;
+  end if;
+  raise notice 'PASS complete_signup: advocate role assigned and persisted';
 end $$;
 
 -- =====================================================================
