@@ -140,11 +140,15 @@ class _AppButtonState extends State<AppButton> {
             widget.icon!,
             const SizedBox(width: 8),
           ],
-          Text(
-            widget.label,
-            style: AppTypography.buttonText(
-              color: _getTextColor(),
-              fontSize: widget.variant == ButtonVariant.sos ? 17 : 15,
+          Flexible(
+            child: Text(
+              widget.label,
+              style: AppTypography.buttonText(
+                color: _getTextColor(),
+                fontSize: widget.variant == ButtonVariant.sos ? 17 : 15,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
@@ -178,7 +182,7 @@ class _AppButtonState extends State<AppButton> {
                       ? BorderRadius.zero
                       : BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.center,
                 child: content,
               ),
