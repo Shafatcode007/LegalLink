@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -e
+set -o pipefail
 
 echo "==> Testing dual-folder migration synchronization..."
 if ! diff -r db/migrations/ supabase/migrations/; then
