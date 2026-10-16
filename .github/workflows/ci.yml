@@ -1,0 +1,44 @@
+name: LegalLink CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  db-rls-guard:
+    name: Database Migrations & RLS Drift Guard
+    runs-on: ubuntu-latest
+
+    env:
+      PG_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Dual-Folder Migration Sync
+        run: |
+          chmod +x scripts/verify_migration_sync.sh
+          ./scripts/verify_migration_sync.sh
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Start Supabase Local Engine
+        run: supabase start
+
+      - name: Apply Migrations (deterministic, no seed)
+        run: supabase db reset --local --no-seed
+
+      - name: Seed Demo & Test Data
+        run: psql -v ON_ERROR_STOP=1 "$PG_URL" -f db/seed.sql
+
+      - name: RLS Test Suite - Run 1 (Execution)
+        run: psql -v ON_ERROR_STOP=1 "$PG_URL" -f db/tests/rls_test.sql
+
+      - name: RLS Test Suite - Run 2 (Idempotency / Drift Guard)
+        run: psql -v ON_ERROR_STOP=1 "$PG_URL" -f db/tests/rls_test.sql
