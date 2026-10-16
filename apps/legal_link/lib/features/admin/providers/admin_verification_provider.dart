@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/advocate_verification_item.dart';
 
 export '../models/advocate_verification_item.dart';
@@ -65,7 +66,8 @@ final List<AdvocateVerificationItem> _mockAdvocates = [
     id: 'adv-002',
     fullName: 'ব্যারিস্টার নুসরাত জাহান (Barrister Nusrat Jahan)',
     barCouncilNo: 'BC-CTG-2018-4521',
-    courtDivision: 'চট্টগ্রাম মহানগর দায়রা জজ আদালত (Chattogram Sessions Court)',
+    courtDivision:
+        'চট্টগ্রাম মহানগর দায়রা জজ আদালত (Chattogram Sessions Court)',
     sanadDocUrl: 'https://storage.legallink.bd/sanad/BC-CTG-2018-4521.pdf',
     status: VerificationStatus.pending,
     phone: '+880 1819-987654',
@@ -165,5 +167,5 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
 /// Provider instance for the admin verification queue
 final adminVerificationProvider =
     NotifierProvider<AdminVerificationNotifier, AdminVerificationState>(
-  AdminVerificationNotifier.new,
-);
+      AdminVerificationNotifier.new,
+    );

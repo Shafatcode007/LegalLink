@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../tokens/app_colors.dart';
 import '../tokens/app_typography.dart';
 import 'min_tap_target.dart';
@@ -49,11 +50,7 @@ class VerifiedBadge extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.verified,
-                color: AppColors.white,
-                size: 16,
-              ),
+              const Icon(Icons.verified, color: AppColors.white, size: 16),
               const SizedBox(width: 6),
               Text(
                 text,

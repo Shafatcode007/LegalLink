@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../shared/shared.dart';
 import '../providers/admin_verification_provider.dart';
 import '../widgets/verification_status_chip.dart';
 
 /// Screen displaying full advocate profile and credentials for administrative review.
 class AdvocateProfileViewScreen extends ConsumerWidget {
-  const AdvocateProfileViewScreen({
-    super.key,
-    required this.advocateId,
-  });
+  const AdvocateProfileViewScreen({super.key, required this.advocateId});
 
   final String advocateId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(adminVerificationProvider);
-    final advocate = ref.read(adminVerificationProvider.notifier).getById(advocateId);
+    final advocate = ref
+        .read(adminVerificationProvider.notifier)
+        .getById(advocateId);
 
     if (advocate == null) {
       return Scaffold(
@@ -111,7 +111,10 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: AppColors.brassWash,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.brass, width: 1.5),
+                          border: Border.all(
+                            color: AppColors.brass,
+                            width: 1.5,
+                          ),
                         ),
                         child: const Icon(
                           Icons.person_rounded,
@@ -134,8 +137,11 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.badge_outlined,
-                          size: 16, color: AppColors.brass),
+                      const Icon(
+                        Icons.badge_outlined,
+                        size: 16,
+                        color: AppColors.brass,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'বার কাউন্সিল নম্বর: ${advocate.barCouncilNo}',
@@ -149,8 +155,11 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.account_balance_outlined,
-                          size: 16, color: AppColors.stoneText),
+                      const Icon(
+                        Icons.account_balance_outlined,
+                        size: 16,
+                        color: AppColors.stoneText,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -320,7 +329,9 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('আইনজীবীর আবেদন প্রত্যাখ্যান করা হয়েছে।'),
+                              content: Text(
+                                'আইনজীবীর আবেদন প্রত্যাখ্যান করা হয়েছে।',
+                              ),
                             ),
                           );
                         }
@@ -339,7 +350,9 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('আইনজীবী সফলভাবে অনুমোদিত হয়েছেন!'),
+                              content: Text(
+                                'আইনজীবী সফলভাবে অনুমোদিত হয়েছেন!',
+                              ),
                             ),
                           );
                         }

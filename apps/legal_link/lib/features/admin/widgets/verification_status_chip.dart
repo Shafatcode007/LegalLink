@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../../../shared/shared.dart';
 import '../models/advocate_verification_item.dart';
 
 /// Status chip adhering to Parchment / Oxford design tokens.
 class VerificationStatusChip extends StatelessWidget {
-  const VerificationStatusChip({
-    super.key,
-    required this.status,
-  });
+  const VerificationStatusChip({super.key, required this.status});
 
   final VerificationStatus status;
 

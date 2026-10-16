@@ -19,14 +19,8 @@ class MinTapTarget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        minWidth: minWidth,
-        minHeight: minHeight,
-      ),
-      child: Align(
-        alignment: alignment,
-        child: child,
-      ),
+      constraints: BoxConstraints(minWidth: minWidth, minHeight: minHeight),
+      child: Align(alignment: alignment, child: child),
     );
   }
 }

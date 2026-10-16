@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'app_colors.dart';
 
 /// Typography definitions for Ain Sohay / LegalLink.
@@ -42,7 +43,10 @@ abstract final class AppTypography {
     Color color = AppColors.oxford,
     double height = 1.6,
   }) {
-    assert(fontSize >= 16, 'Bangla text must be at least 16sp to prevent glyph collapse.');
+    assert(
+      fontSize >= 16,
+      'Bangla text must be at least 16sp to prevent glyph collapse.',
+    );
     return GoogleFonts.notoSansBengali(
       fontSize: fontSize,
       fontWeight: fontWeight,

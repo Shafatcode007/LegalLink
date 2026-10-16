@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../tokens/app_colors.dart';
 import '../tokens/app_typography.dart';
 import 'min_tap_target.dart';
 
-enum ButtonVariant {
-  primary,
-  secondary,
-  ribbon,
-  sos,
-}
+enum ButtonVariant { primary, secondary, ribbon, sos }
 
 /// Custom LegalLink Button supporting Primary (Brass), Secondary (Stone/Parchment),
 /// Ribbon (Editorial link style), and SOS (Burgundy strictly).
@@ -136,10 +132,7 @@ class _AppButtonState extends State<AppButton> {
             ),
           )
         else ...[
-          if (widget.icon != null) ...[
-            widget.icon!,
-            const SizedBox(width: 8),
-          ],
+          if (widget.icon != null) ...[widget.icon!, const SizedBox(width: 8)],
           Flexible(
             child: Text(
               widget.label,

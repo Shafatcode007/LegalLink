@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../tokens/app_colors.dart';
 import '../tokens/app_typography.dart';
 
@@ -6,18 +7,15 @@ import '../tokens/app_typography.dart';
 /// Rule: NEVER use generic circular progress spinners.
 /// Uses a breathing brass ring around a gavel or skeleton loaders.
 class GavelBreathingRingLoader extends StatefulWidget {
-  const GavelBreathingRingLoader({
-    super.key,
-    this.message,
-    this.size = 72.0,
-  });
+  const GavelBreathingRingLoader({super.key, this.message, this.size = 72.0});
 
   /// Optional message beneath the loading metaphor (e.g. 'যাচাই করা হচ্ছে...')
   final String? message;
   final double size;
 
   @override
-  State<GavelBreathingRingLoader> createState() => _GavelBreathingRingLoaderState();
+  State<GavelBreathingRingLoader> createState() =>
+      _GavelBreathingRingLoaderState();
 }
 
 class _GavelBreathingRingLoaderState extends State<GavelBreathingRingLoader>
@@ -39,12 +37,10 @@ class _GavelBreathingRingLoaderState extends State<GavelBreathingRingLoader>
       curve: Curves.easeInOut,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.15).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
