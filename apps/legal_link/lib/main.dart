@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+import 'app/app.dart';
+import 'app/di.dart';
 import 'features/admin/admin.dart';
 import 'shared/shared.dart';
 
-void main() {
-  runApp(const ProviderScope(child: LegalLinkApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  await Hive.openBox<dynamic>('auth_box');
+
+  runApp(const AppDependencyScope(child: AinSohayApp()));
 }
 
+/// Existing Admin surface retained for the Admin smoke test.
 class LegalLinkApp extends StatelessWidget {
   const LegalLinkApp({super.key});
 
