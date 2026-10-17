@@ -20,6 +20,38 @@ The environment is **WSL2 Ubuntu + native Docker Engine**; the Supabase CLI is t
 | 6 | **RLS is the only authorization layer.** No raw SQL that bypasses RLS; no `service_role` key in client code. | `agent_rules.md` §2; ADR-003. |
 | 7 | **Zero client-side protected access.** The Flutter app never holds a service-role key; all Storage reads go through 15-minute signed URLs (ADR-011). | Code review + CI. |
 | 8 | **Immutability.** Published summaries, hearings, invoices and audit logs are archival artefacts — never edited in place (ADR-012, ADR-015). | Trigger-enforced (`audit_immutable`, `hitl_gate`). |
+| 9 | **Publish the contract before wiring DTOs.** When Role A adds/changes a table or RPC, the exact JSON request/response payload is published before Role B writes DTOs (§1.1). | Monday contract freeze; PR review. |
+| 10 | **Gitignore generated code, commit lockfiles.** Build/tool output stays ignored; `pubspec.lock` and `package-lock.json` are committed for reproducible builds (§1.3). | `.gitignore` + CI. |
+
+### 1.1 Schema → DTO contract publication
+
+When Role A modifies or adds a table/RPC (e.g. `accept_sos`, `invoices`, `advocate_public`), Role A **must publish the exact JSON request/response payload** in the commit/PR description (or update the shared schema docs) **before Role B wires the feature**. The contract fixes:
+
+- **field names** — `snake_case` on the wire; Role B maps to Dart `camelCase` consistently in every DTO.
+- **nullability** — which fields are `nullable` (Dart `T?`).
+- **types & timestamps** — ISO-8601 UTC for `timestamptz`.
+- **error codes** and enum values (TRD §6.7).
+
+Role B must not invent DTO fields. Serialization bugs (timestamp format, null vs non-null, naming) are caught by unit tests generated from this contract.
+
+### 1.2 Realtime channel naming (immutable)
+
+Realtime channel/topic names are fixed by TRD §6.5 and **no role may alter their format unilaterally** (a common integration failure is a client topic that does not match the database publication filter):
+
+| Channel | Source (TRD §6.5) |
+|---|---|
+| `case:{case_id}` | `postgres_changes` on `cases`, `hearings`, `ai_summaries`, `checklist_items`, `documents` filtered by `case_id` |
+| `sos:{district}` | INSERT + UPDATE on `sos_requests` filtered by `district` |
+| `inbox:{user_id}` | INSERT on `notifications` filtered by `user_id` |
+| `admin:{queue}` | INSERT on `advocates` (verification=pending), `audit_logs` (flagged), complaints |
+
+A subscription key must be a **stable string** derived deterministically from its identifiers (a `List` identity key is forbidden — TRD §8.3), so equal inputs reuse exactly one channel.
+
+### 1.3 Generated code & lockfile rules
+
+- Keep build/tool output strictly gitignored: `.dart_tool/`, `build/`, `coverage/`, `.packages`, `.pub-cache/`, `.wrangler/`, `node_modules/`, `.supabase/`.
+- Commit **`pubspec.lock`** and (once `edge/worker/` exists) **`package-lock.json`** for reproducible CI builds.
+- Resolve lockfile conflicts by re-running `flutter pub get` / `npm install` — **never** hand-merge lockfiles or commit a platform-specific (WSL2 vs Windows vs macOS) resolution.
 
 ---
 
@@ -69,6 +101,7 @@ Every commit must be locally verified **before** `git push`. Run the full checkl
    ```
    Output must end with `*** ALL HITL RLS TESTS PASSED ***` on **both** runs.
 6. **No bypass:** confirm no committed SQL bypasses RLS (no `service_role` shortcuts, no client-side raw SQL).
+7. **Contract:** if the migration adds/changes a table or RPC, publish the exact JSON payload contract (see §1.1) in the commit/PR body **before** Role B wires DTOs.
 
 ### 🔵 3.2 Role B — Client & UI (Flutter)
 
@@ -153,6 +186,9 @@ Database work additionally **must** pass the drift guard (§3.1.5) before push.
 - [ ] No secrets, no RLS bypass, no direct push to `main`.
 - [ ] RLS-touching change includes a `db/tests/rls_test.sql` update; drift guard green ×2.
 - [ ] Contracts honored (or changed at the Monday freeze / integration checkpoint).
+- [ ] New/changed tables & RPCs published a JSON payload contract **before** client DTOs were written (§1.1).
+- [ ] Realtime channel names match TRD §6.5; no unilateral topic changes (§1.2).
+- [ ] Generated artifacts gitignored; lockfiles committed and never hand-merged (§1.3).
 - [ ] PR CI green; reviewed and merged without force-push.
 
 ---
