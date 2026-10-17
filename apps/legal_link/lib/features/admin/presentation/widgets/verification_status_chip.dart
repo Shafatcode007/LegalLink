@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/shared.dart';
-import '../domain/entities/advocate_verification_item.dart';
+import '../../../../shared/shared.dart';
+import '../../domain/entities/advocate_verification_item.dart';
 
 /// Status chip adhering to Parchment / Oxford design tokens.
 class VerificationStatusChip extends StatelessWidget {
@@ -30,9 +30,9 @@ class VerificationStatusChip extends StatelessWidget {
         icon = Icons.verified_rounded;
         break;
       case VerificationStatus.rejected:
-        bg = AppColors.burgundyWash;
-        border = AppColors.burgundy;
-        text = AppColors.burgundy;
+        bg = AppColors.parchmentSunken;
+        border = AppColors.stone;
+        text = AppColors.oxfordMuted;
         icon = Icons.cancel_outlined;
         break;
     }
@@ -42,7 +42,7 @@ class VerificationStatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border, width: 1.2),
+        border: Border.all(color: border, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

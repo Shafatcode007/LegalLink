@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app/di.dart';
 import 'features/admin/admin.dart';
 import 'shared/shared.dart';
 
 void main() {
-  runApp(const ProviderScope(child: LegalLinkApp()));
+  runApp(
+    ProviderScope(overrides: createDiOverrides(), child: const LegalLinkApp()),
+  );
 }
 
 class LegalLinkApp extends StatelessWidget {

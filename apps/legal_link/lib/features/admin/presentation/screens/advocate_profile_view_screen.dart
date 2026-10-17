@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/shared.dart';
-import '../domain/entities/advocate_verification_item.dart';
-import '../presentation/notifiers/admin_verification_notifier.dart';
+import '../../../../shared/shared.dart';
+import '../providers/admin_verification_provider.dart';
 import '../widgets/verification_status_chip.dart';
 
 /// Screen displaying full advocate profile and credentials for administrative review.
