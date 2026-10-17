@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/shared.dart';
-import '../providers/admin_verification_provider.dart';
+import '../domain/entities/advocate_verification_item.dart';
+import '../presentation/notifiers/admin_verification_notifier.dart';
 import '../widgets/verification_status_chip.dart';
 import 'advocate_profile_view_screen.dart';
 
@@ -231,7 +232,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    item.courtDivision,
+                    item.courts.isNotEmpty ? item.courts.first : '—',
                     style: AppTypography.banglaBody(
                       fontSize: 16,
                       color: AppColors.oxfordSoft,
@@ -270,7 +271,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          item.sanadDocUrl.split('/').last,
+                          item.sanadUrl?.split('/').last ?? '—',
                           style: AppTypography.uiBody(
                             fontSize: 12,
                             color: AppColors.oxfordMuted,
@@ -380,7 +381,6 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
             Text(
               'কোন অপেক্ষমান আবেদন নেই',
               style: AppTypography.displayHeading(fontSize: 20),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(

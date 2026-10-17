@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/shared.dart';
-import '../providers/admin_verification_provider.dart';
+import '../domain/entities/advocate_verification_item.dart';
+import '../presentation/notifiers/admin_verification_notifier.dart';
 import '../widgets/verification_status_chip.dart';
 
 /// Screen displaying full advocate profile and credentials for administrative review.
@@ -162,8 +163,10 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
-                          advocate.courtDivision,
+                      child: Text(
+                        advocate.courts.isNotEmpty
+                            ? advocate.courts.first
+                            : '—',
                           style: AppTypography.banglaBody(
                             fontSize: 16,
                             color: AppColors.oxfordSoft,
@@ -201,13 +204,15 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                   const Divider(color: AppColors.stone, height: 24),
                   _buildDetailRow(
                     label: 'দক্ষতা (Specialization)',
-                    value: advocate.specialization,
+                    value: advocate.specializations.isNotEmpty
+                        ? advocate.specializations.first
+                        : '—',
                     icon: Icons.gavel_rounded,
                   ),
                   const Divider(color: AppColors.stone, height: 24),
                   _buildDetailRow(
                     label: 'মোবাইল (Phone)',
-                    value: advocate.phone,
+                    value: '—',
                     icon: Icons.phone_outlined,
                   ),
                 ],
@@ -260,7 +265,7 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              advocate.sanadDocUrl.split('/').last,
+                              advocate.sanadUrl?.split('/').last ?? '—',
                               style: AppTypography.uiBody(
                                 fontSize: 13,
                                 color: AppColors.oxfordMuted,
