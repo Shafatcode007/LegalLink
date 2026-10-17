@@ -630,5 +630,187 @@ begin
 end $$;
 
 -- =====================================================================
+-- Sprint 2 (Task 1) — sanad bucket storage RLS + update_advocate_documents
+-- =====================================================================
+reset role;
+
+-- S2-1: a client (role='client') cannot write into the sanad bucket, even
+--       inside its own {uid}/ folder (restrictive advocate-only policy).
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('sanad', '11111111-1111-1111-1111-111111111111/sanad.jpg',
+            '11111111-1111-1111-1111-111111111111');
+    raise exception 'S2-1 FAIL: client inserted into sanad bucket';
+  exception when others then
+    if sqlstate = '42501' then
+      raise notice 'PASS S2-1: client sanad insert denied (42501)';
+    elsif sqlerrm like 'S2-1 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-1 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-2: an advocate cannot write into another advocate's folder.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('sanad', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/sanad.jpg',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    raise exception 'S2-2 FAIL: cross-folder sanad insert succeeded';
+  exception when others then
+    if sqlstate = '42501' then
+      raise notice 'PASS S2-2: cross-folder sanad insert denied (42501)';
+    elsif sqlerrm like 'S2-2 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-2 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-3: an advocate CAN write into its own {uid}/ folder.
+do $$
+begin
+  insert into storage.objects (bucket_id, name, owner)
+  values ('sanad', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/sanad.jpg',
+          'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  raise notice 'PASS S2-3: advocate own-folder sanad insert allowed';
+exception when others then
+  raise exception 'S2-3 ERROR: advocate own-folder insert failed: % (%)', sqlerrm, sqlstate;
+end $$;
+
+-- S2-4: a non-admin cannot read the sanad bucket back.
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from storage.objects where bucket_id = 'sanad';
+  if v_n <> 0 then
+    raise exception 'S2-4 FAIL: non-admin read % sanad object(s)', v_n;
+  end if;
+  raise notice 'PASS S2-4: non-admin cannot read sanad objects';
+exception when others then
+  if sqlerrm like 'S2-4 FAIL%' then
+    raise;
+  else
+    raise exception 'S2-4 ERROR: %', sqlerrm;
+  end if;
+end $$;
+
+-- S2-5: an admin CAN read the sanad bucket.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from storage.objects where bucket_id = 'sanad';
+  if v_n < 1 then
+    raise exception 'S2-5 FAIL: admin could not read sanad objects (%)', v_n;
+  end if;
+  raise notice 'PASS S2-5: admin can read sanad objects';
+exception when others then
+  if sqlerrm like 'S2-5 FAIL%' then
+    raise;
+  else
+    raise exception 'S2-5 ERROR: %', sqlerrm;
+  end if;
+end $$;
+
+-- S2-6: a client cannot call update_advocate_documents.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    perform update_advocate_documents('11111111-1111-1111-1111-111111111111/sanad.jpg', null);
+    raise exception 'S2-6 FAIL: client update_advocate_documents not rejected';
+  exception when others then
+    if sqlerrm not like '%caller must have advocate role%' then
+      raise exception 'S2-6 ERROR: unexpected error: %', sqlerrm;
+    end if;
+    raise notice 'PASS S2-6: client update_advocate_documents rejected';
+  end;
+end $$;
+
+-- S2-7 / S2-8 / S2-9: advocate RPC contract (run as advocate).
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_row advocates;
+begin
+  -- S2-7: no documents provided is refused.
+  begin
+    perform update_advocate_documents(null, null);
+    raise exception 'S2-7 FAIL: empty update accepted';
+  exception when others then
+    if sqlerrm like 'no_documents_provided%' then
+      raise notice 'PASS S2-7: empty update refused';
+    elsif sqlerrm like 'S2-7 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-7 ERROR: unexpected error: %', sqlerrm;
+    end if;
+  end;
+
+  -- S2-8: valid update persists both paths on the caller's own row.
+  select * into v_row from update_advocate_documents(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/sanad.jpg',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/nid.jpg');
+  if v_row.sanad_url is null or v_row.nid_url is null then
+    raise exception 'S2-8 FAIL: urls not persisted (sanad=%, nid=%)',
+      v_row.sanad_url, v_row.nid_url;
+  end if;
+  raise notice 'PASS S2-8: advocate document urls persisted';
+exception when others then
+  if sqlerrm like 'S2-8 FAIL%' then
+    raise;
+  else
+    raise exception 'S2-8 ERROR: %', sqlerrm;
+  end if;
+end $$;
+
+-- S2-9: the upload is audited (superuser read bypasses audit_logs RLS).
+reset role;
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from audit_logs
+   where action = 'advocate.upload_credentials'
+     and entity_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  if v_n <> 1 then
+    raise exception 'S2-9 FAIL: upload_credentials audit row missing (%)', v_n;
+  end if;
+  raise notice 'PASS S2-9: advocate.upload_credentials audited';
+exception when others then
+  if sqlerrm like 'S2-9 FAIL%' then
+    raise;
+  else
+    raise exception 'S2-9 ERROR: %', sqlerrm;
+  end if;
+end $$;
+
+-- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'
