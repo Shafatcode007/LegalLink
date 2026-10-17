@@ -34,13 +34,13 @@ declare
   v_adv_b    uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
   v_admin    uuid := 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 begin
-  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at)
-  values (v_client_a, 'authenticated', 'authenticated', 'client_a@test.local', 'x', now()),
-         (v_client_b, 'authenticated', 'authenticated', 'client_b@test.local', 'x', now()),
-         (v_adv_a,    'authenticated', 'authenticated', 'adv_a@test.local',    'x', now()),
-         (v_adv_b,    'authenticated', 'authenticated', 'adv_b@test.local',    'x', now()),
-         (v_admin,    'authenticated', 'authenticated', 'admin@test.local',    'x', now()),
-       ('00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'client_x@test.local', 'x', now())
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values (v_client_a, 'authenticated', 'authenticated', 'client_a@test.local', 'x', now(), '+8801711000001', now()),
+         (v_client_b, 'authenticated', 'authenticated', 'client_b@test.local', 'x', now(), '+8801711000002', now()),
+         (v_adv_a,    'authenticated', 'authenticated', 'adv_a@test.local',    'x', now(), '+8801711000003', now()),
+         (v_adv_b,    'authenticated', 'authenticated', 'adv_b@test.local',    'x', now(), '+8801711000004', now()),
+         (v_admin,    'authenticated', 'authenticated', 'admin@test.local',    'x', now(), '+8801711000005', now()),
+       ('00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'client_x@test.local', 'x', now(), '+8801711000006', now())
   on conflict (id) do nothing;
 
   insert into profiles (id, role, phone) values
@@ -809,6 +809,66 @@ exception when others then
   else
     raise exception 'S2-9 ERROR: %', sqlerrm;
   end if;
+end $$;
+
+-- =====================================================================
+-- complete_signup phone resolution (auth.users is authoritative)
+-- =====================================================================
+reset role;
+
+-- Probes: one auth account WITH a registered phone, one WITHOUT any phone.
+insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+values ('00000000-0000-0000-0000-0000000000aa', 'authenticated', 'authenticated',
+        'probe_phone@test.local', 'x', now(), '+8801700000009', now()),
+       ('00000000-0000-0000-0000-0000000000bb', 'authenticated', 'authenticated',
+        'probe_nophone@test.local', 'x', now(), null, null)
+on conflict (id) do nothing;
+
+-- T-PHONE-1 — phone in auth.users, none in JWT -> must resolve from auth.users.
+select set_config('request.jwt.claims',
+  json_build_object('sub', '00000000-0000-0000-0000-0000000000aa', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_phone text;
+begin
+  perform complete_signup('client'::user_role, 'Phone Probe', 'bn');
+  select phone into v_phone from profiles where id = '00000000-0000-0000-0000-0000000000aa';
+  if v_phone is null or v_phone = '' then
+    raise exception 'T-PHONE-1 FAIL: phone not resolved (got %)', coalesce(v_phone, '<null>');
+  end if;
+  if v_phone <> '+8801700000009' then
+    raise exception 'T-PHONE-1 FAIL: expected +8801700000009, got %', v_phone;
+  end if;
+  raise notice 'PASS T-PHONE-1: phone resolved from auth.users';
+exception when others then
+  if sqlerrm like 'T-PHONE-1 FAIL%' then
+    raise;
+  else
+    raise exception 'T-PHONE-1 ERROR: % (%)', sqlerrm, sqlstate;
+  end if;
+end $$;
+
+-- T-PHONE-2 — no phone anywhere -> phone_not_found (no empty-string phone).
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '00000000-0000-0000-0000-0000000000bb', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    perform complete_signup('client'::user_role, 'No Phone Probe', 'bn');
+    raise exception 'T-PHONE-2 FAIL: complete_signup succeeded without a phone';
+  exception when others then
+    if sqlerrm like 'phone_not_found%' then
+      raise notice 'PASS T-PHONE-2: missing phone rejected';
+    elsif sqlerrm like 'T-PHONE-2 FAIL%' then
+      raise;
+    else
+      raise exception 'T-PHONE-2 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
 end $$;
 
 -- =====================================================================
