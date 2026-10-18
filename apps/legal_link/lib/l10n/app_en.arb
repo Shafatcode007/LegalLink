@@ -46,5 +46,9 @@
   "profileComplete": "Your account setup is complete.",
   "role": "Role",
   "phone": "Phone",
-  "signOut": "Sign out"
+  "signOut": "Sign out",
+
+  "phoneNotFound": "Verified phone number was not found. Please start again.",
+  "confirmRoleError": "Please confirm the selected role before continuing.",
+  "profileCompletionError": "Unable to complete your profile. Please try again."
 }

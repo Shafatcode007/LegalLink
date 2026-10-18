@@ -12,6 +12,7 @@ import 'package:legal_link/features/auth/presentation/screens/phone_screen.dart'
 import 'package:legal_link/features/auth/presentation/screens/role_selection_screen.dart';
 import 'package:legal_link/features/home/presentation/screens/home_screen.dart';
 import 'package:legal_link/features/onboarding/presentation/screens/minimal_profile_screen.dart';
+import 'package:legal_link/shared/shared.dart';
 
 class WidgetFakeAuthRepository implements AuthRepository {
   String? verifiedPhone;
@@ -102,7 +103,7 @@ void main() {
 
     await tester.pump();
 
-    final sendOtpButton = find.byType(ElevatedButton).first;
+    final sendOtpButton = find.byType(AppButton).first;
 
     await tapVisible(tester, sendOtpButton);
 
@@ -118,7 +119,7 @@ void main() {
 
     await tester.pump();
 
-    final verifyButton = find.byType(ElevatedButton).first;
+    final verifyButton = find.byType(AppButton).first;
 
     await tapVisible(tester, verifyButton);
 
@@ -133,12 +134,14 @@ void main() {
     );
 
     await tester.ensureVisible(clientRole);
+
     await tester.pumpAndSettle();
 
     await tester.tap(clientRole);
+
     await tester.pump();
 
-    final continueButton = find.byType(ElevatedButton).first;
+    final continueButton = find.byType(AppButton).first;
 
     await tapVisible(tester, continueButton);
 
@@ -154,7 +157,7 @@ void main() {
 
     await tester.pump();
 
-    final saveButton = find.byType(ElevatedButton).first;
+    final saveButton = find.byType(AppButton).first;
 
     await tapVisible(tester, saveButton);
 
@@ -172,11 +175,13 @@ void main() {
 
     expect(repository.currentUser!.role, UserRole.client);
 
+    expect(repository.currentUser!.language, 'bn');
+
     // -------------------------------------------------
     // LOGOUT
     // -------------------------------------------------
 
-    final logoutButton = find.byType(OutlinedButton).first;
+    final logoutButton = find.byType(AppButton).first;
 
     await tapVisible(tester, logoutButton);
 

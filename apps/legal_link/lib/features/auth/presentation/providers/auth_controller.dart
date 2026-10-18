@@ -9,6 +9,7 @@ class AuthState {
     this.phone,
     this.role,
     this.user,
+    this.language = 'bn',
     this.otpVerified = false,
     this.roleConfirmed = false,
     this.loading = false,
@@ -19,6 +20,13 @@ class AuthState {
   final String? phone;
   final UserRole? role;
   final AppUser? user;
+
+  /// Current UI language.
+  ///
+  /// Supported values:
+  /// - bn = Bangla
+  /// - en = English
+  final String language;
 
   final bool otpVerified;
   final bool roleConfirmed;
@@ -33,6 +41,7 @@ class AuthState {
     String? phone,
     UserRole? role,
     AppUser? user,
+    String? language,
     bool? otpVerified,
     bool? roleConfirmed,
     bool? loading,
@@ -47,6 +56,7 @@ class AuthState {
       phone: clearPhone ? null : phone ?? this.phone,
       role: clearRole ? null : role ?? this.role,
       user: clearUser ? null : user ?? this.user,
+      language: language ?? this.language,
       otpVerified: otpVerified ?? this.otpVerified,
       roleConfirmed: roleConfirmed ?? this.roleConfirmed,
       loading: loading ?? this.loading,
@@ -84,6 +94,7 @@ class AuthController extends Notifier<AuthState> {
       phone: phone,
       user: user,
       role: user?.role,
+      language: user?.language ?? state.language,
       otpVerified: phone != null,
       roleConfirmed: user != null,
       initializing: false,
@@ -158,6 +169,17 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(roleConfirmed: true, clearError: true);
   }
 
+  /// Changes the current UI language.
+  ///
+  /// This immediately updates the app locale through AinSohayApp.
+  void setLanguage(String language) {
+    if (language != 'bn' && language != 'en') {
+      return;
+    }
+
+    state = state.copyWith(language: language, clearError: true);
+  }
+
   Future<bool> completeProfile({
     required String fullName,
     required String language,
@@ -200,6 +222,7 @@ class AuthController extends Notifier<AuthState> {
         user: user,
         phone: user.phone,
         role: user.role,
+        language: user.language,
         otpVerified: true,
         roleConfirmed: true,
         loading: false,

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:legal_link/shared/tokens/app_colors.dart';
+import 'package:legal_link/shared/shared.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../domain/user_role.dart';
+import '../auth_error_localizer.dart';
 import '../providers/auth_controller.dart';
 
 class RoleSelectionScreen extends ConsumerWidget {
@@ -13,9 +14,7 @@ class RoleSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-
     final auth = ref.watch(authControllerProvider);
-
     final controller = ref.read(authControllerProvider.notifier);
 
     void selectRole(UserRole role) {
@@ -101,7 +100,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                   if (auth.error != null) ...[
                     const SizedBox(height: 16),
                     Text(
-                      auth.error!,
+                      localizedAuthError(l10n, auth.error),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -110,18 +109,17 @@ class RoleSelectionScreen extends ConsumerWidget {
 
                   const SizedBox(height: 32),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: auth.role == null
-                          ? null
-                          : () {
-                              ref
-                                  .read(authControllerProvider.notifier)
-                                  .confirmRole();
-                            },
-                      child: Text(l10n.continueText),
-                    ),
+                  AppButton.primary(
+                    label: l10n.continueText,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    onPressed: auth.role == null
+                        ? null
+                        : () {
+                            ref
+                                .read(authControllerProvider.notifier)
+                                .confirmRole();
+                          },
+                    isFullWidth: true,
                   ),
                 ],
               ),

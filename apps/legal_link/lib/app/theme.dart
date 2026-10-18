@@ -1,8 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:legal_link/shared/tokens/app_colors.dart';
 
 abstract final class AppTheme {
-  static ThemeData get light {
+  static ThemeData light(String language) {
+    final isBangla = language == 'bn';
+
+    TextStyle heading({
+      required double fontSize,
+      required FontWeight fontWeight,
+      required double height,
+      Color color = AppColors.oxford,
+    }) {
+      if (isBangla) {
+        return GoogleFonts.notoSansBengali(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          color: color,
+        );
+      }
+
+      return GoogleFonts.playfairDisplay(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        height: height,
+        color: color,
+      );
+    }
+
+    TextStyle body({
+      required double fontSize,
+      required FontWeight fontWeight,
+      required double height,
+      Color color = AppColors.oxford,
+      double? letterSpacing,
+    }) {
+      if (isBangla) {
+        return GoogleFonts.notoSansBengali(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          color: color,
+        );
+      }
+
+      return GoogleFonts.inter(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        height: height,
+        color: color,
+        letterSpacing: letterSpacing,
+      );
+    }
+
     final colorScheme =
         ColorScheme.fromSeed(
           seedColor: AppColors.brass,
@@ -21,37 +72,56 @@ abstract final class AppTheme {
       borderSide: BorderSide(color: AppColors.stone),
     );
 
+    final textTheme = TextTheme(
+      headlineLarge: heading(
+        fontSize: 32,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
+      ),
+      headlineMedium: heading(
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+      ),
+      headlineSmall: heading(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+      ),
+      titleLarge: body(fontSize: 18, fontWeight: FontWeight.w700, height: 1.35),
+      titleMedium: body(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
+      ),
+      titleSmall: body(fontSize: 16, fontWeight: FontWeight.w600, height: 1.35),
+      bodyLarge: body(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6),
+      bodyMedium: body(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6),
+      bodySmall: body(
+        fontSize: isBangla ? 16 : 13,
+        fontWeight: FontWeight.w400,
+        height: isBangla ? 1.6 : 1.45,
+        color: AppColors.oxfordMuted,
+      ),
+      labelLarge: body(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
+        letterSpacing: isBangla ? null : 0.2,
+      ),
+    );
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.parchment,
+      textTheme: textTheme,
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.parchment,
         foregroundColor: AppColors.oxford,
         elevation: 0,
-      ),
-
-      textTheme: const TextTheme(
-        headlineMedium: TextStyle(
-          color: AppColors.oxford,
-          fontWeight: FontWeight.w700,
-        ),
-        titleMedium: TextStyle(
-          color: AppColors.oxford,
-          fontWeight: FontWeight.w600,
-        ),
-        bodyLarge: TextStyle(
-          color: AppColors.oxford,
-          fontSize: 16,
-          height: 1.6,
-        ),
-        bodyMedium: TextStyle(
-          color: AppColors.oxford,
-          fontSize: 16,
-          height: 1.6,
-        ),
-        bodySmall: TextStyle(color: AppColors.oxfordMuted, height: 1.5),
+        titleTextStyle: textTheme.headlineSmall,
       ),
 
       inputDecorationTheme: InputDecorationTheme(
@@ -83,6 +153,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          textStyle: textTheme.labelLarge,
         ),
       ),
     );

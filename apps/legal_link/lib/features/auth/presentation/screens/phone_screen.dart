@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:legal_link/shared/tokens/app_colors.dart';
+import 'package:legal_link/shared/shared.dart';
 
 import '../../../../l10n/app_localizations.dart';
+import '../auth_error_localizer.dart';
 import '../providers/auth_controller.dart';
 
 class PhoneScreen extends ConsumerStatefulWidget {
@@ -16,7 +16,6 @@ class PhoneScreen extends ConsumerStatefulWidget {
 
 class _PhoneScreenState extends ConsumerState<PhoneScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _phoneController = TextEditingController();
 
   @override
@@ -27,7 +26,6 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
 
   String _normalizePhone(String input) {
     final digits = input.replaceAll(RegExp(r'\D'), '');
-
     return '+880$digits';
   }
 
@@ -37,7 +35,6 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
     }
 
     final digits = value.replaceAll(RegExp(r'\D'), '');
-
     final validPhone = RegExp(r'^1[3-9]\d{8}$');
 
     if (!validPhone.hasMatch(digits)) {
@@ -60,23 +57,28 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
         .read(authControllerProvider.notifier)
         .sendOtp(phone);
 
-    if (!mounted) return;
-
-    if (!success) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.somethingWentWrong)));
+    if (!mounted) {
+      return;
     }
 
-    // No manual navigation is required here.
-    // router.dart observes AuthState.
-    // When phone becomes non-null,
-    // GoRouter redirects to /otp.
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            localizedAuthError(l10n, ref.read(authControllerProvider).error),
+          ),
+        ),
+      );
+    }
+
+    // No manual navigation is required.
+    // router.dart observes AuthState and redirects
+    // to /otp when the phone is set successfully.
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-
     final auth = ref.watch(authControllerProvider);
 
     return Scaffold(
@@ -158,7 +160,9 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
                         hintText: l10n.phoneHint,
                         prefixIcon: const Icon(Icons.phone_outlined),
                       ),
-                      validator: (value) => _validatePhone(value, l10n),
+                      validator: (value) {
+                        return _validatePhone(value, l10n);
+                      },
                       onFieldSubmitted: (_) {
                         if (!auth.loading) {
                           _submit();
@@ -179,7 +183,9 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
                             color: AppColors.oxfordMuted,
                           ),
                         ),
+
                         const SizedBox(width: 8),
+
                         Expanded(
                           child: Text(
                             l10n.phonePrivacy,
@@ -195,27 +201,18 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
 
                     const SizedBox(height: 28),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: auth.loading ? null : _submit,
-                        child: auth.loading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.white,
-                                ),
-                              )
-                            : Text(l10n.sendOtp),
-                      ),
+                    AppButton.primary(
+                      label: l10n.sendOtp,
+                      icon: const Icon(Icons.sms_outlined),
+                      onPressed: auth.loading ? null : _submit,
+                      isLoading: auth.loading,
+                      isFullWidth: true,
                     ),
 
                     if (auth.error != null) ...[
                       const SizedBox(height: 16),
                       Text(
-                        auth.error!,
+                        localizedAuthError(l10n, auth.error),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),

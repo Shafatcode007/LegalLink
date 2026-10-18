@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
-import 'package:legal_link/shared/tokens/app_colors.dart';
+import 'package:legal_link/shared/shared.dart';
 
 import '../../../../l10n/app_localizations.dart';
+import '../../../auth/presentation/auth_error_localizer.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 
 class MinimalProfileScreen extends ConsumerStatefulWidget {
@@ -32,7 +31,7 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
       return;
     }
 
-    final success = await ref
+    await ref
         .read(authControllerProvider.notifier)
         .completeProfile(
           fullName: _nameController.text.trim(),
@@ -43,9 +42,9 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
       return;
     }
 
-    if (success) {
-      context.go('/home');
-    }
+    // No manual navigation is required.
+    // router.dart observes AuthState and redirects
+    // to /home after profile completion succeeds.
   }
 
   @override
@@ -128,11 +127,9 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return l10n.nameRequired;
-                        }
-
-                        if (value.trim().length < 2) {
+                        if (value == null ||
+                            value.trim().isEmpty ||
+                            value.trim().length < 2) {
                           return l10n.nameRequired;
                         }
 
@@ -173,7 +170,9 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
                           size: 18,
                           color: AppColors.oxfordMuted,
                         ),
+
                         const SizedBox(width: 8),
+
                         Expanded(
                           child: Text(
                             l10n.profilePrivacy,
@@ -219,11 +218,16 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
                               setState(() {
                                 _language = value;
                               });
+
+                              ref
+                                  .read(authControllerProvider.notifier)
+                                  .setLanguage(value);
                             },
                     ),
 
                     if (auth.error != null) ...[
                       const SizedBox(height: 16),
+
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -237,7 +241,7 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
                           ),
                         ),
                         child: Text(
-                          auth.error!,
+                          localizedAuthError(l10n, auth.error),
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.error,
                             fontWeight: FontWeight.w500,
@@ -248,21 +252,12 @@ class _MinimalProfileScreenState extends ConsumerState<MinimalProfileScreen> {
 
                     const SizedBox(height: 32),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: auth.loading ? null : _submit,
-                        child: auth.loading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.white,
-                                ),
-                              )
-                            : Text(l10n.saveContinue),
-                      ),
+                    AppButton.primary(
+                      label: l10n.saveContinue,
+                      icon: const Icon(Icons.check_rounded),
+                      onPressed: auth.loading ? null : _submit,
+                      isLoading: auth.loading,
+                      isFullWidth: true,
                     ),
                   ],
                 ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:legal_link/shared/tokens/app_colors.dart';
+import 'package:legal_link/shared/shared.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/domain/user_role.dart';
@@ -17,7 +16,40 @@ class HomeScreen extends ConsumerWidget {
     final user = auth.user;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LegalSkeletonLoader(
+                      width: 88,
+                      height: 88,
+                      borderRadius: 24,
+                    ),
+                    SizedBox(height: 24),
+                    LegalSkeletonLoader(
+                      width: 220,
+                      height: 26,
+                      borderRadius: 8,
+                    ),
+                    SizedBox(height: 16),
+                    LegalSkeletonLoader(
+                      width: double.infinity,
+                      height: 120,
+                      borderRadius: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     final roleLabel = user.role == UserRole.client
@@ -25,18 +57,7 @@ class HomeScreen extends ConsumerWidget {
         : l10n.advocateRole;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.appName),
-        actions: [
-          IconButton(
-            tooltip: l10n.signOut,
-            onPressed: () async {
-              await ref.read(authControllerProvider.notifier).signOut();
-            },
-            icon: const Icon(Icons.logout_rounded),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(l10n.appName)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -58,27 +79,21 @@ class HomeScreen extends ConsumerWidget {
                       color: AppColors.white,
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   Text(
                     l10n.welcome,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     l10n.profileComplete,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge
                         ?.copyWith(color: AppColors.oxfordMuted),
                   ),
-
                   const SizedBox(height: 32),
-
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
@@ -89,25 +104,19 @@ class HomeScreen extends ConsumerWidget {
                             label: l10n.fullName,
                             value: user.fullName,
                           ),
-
                           const Divider(height: 30),
-
                           _InfoRow(
                             icon: Icons.badge_outlined,
                             label: l10n.role,
                             value: roleLabel,
                           ),
-
                           const Divider(height: 30),
-
                           _InfoRow(
                             icon: Icons.phone_outlined,
                             label: l10n.phone,
                             value: user.phone,
                           ),
-
                           const Divider(height: 30),
-
                           _InfoRow(
                             icon: Icons.language_rounded,
                             label: l10n.language,
@@ -119,28 +128,14 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await ref
-                            .read(authControllerProvider.notifier)
-                            .signOut();
-                      },
-                      icon: const Icon(Icons.logout_rounded),
-                      label: Text(l10n.signOut),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 52),
-                        foregroundColor: AppColors.oxford,
-                        side: const BorderSide(color: AppColors.oxford),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
+                  AppButton.secondary(
+                    label: l10n.signOut,
+                    icon: const Icon(Icons.logout_rounded),
+                    onPressed: () async {
+                      await ref.read(authControllerProvider.notifier).signOut();
+                    },
+                    isFullWidth: true,
                   ),
                 ],
               ),
@@ -177,9 +172,7 @@ class _InfoRow extends StatelessWidget {
           ),
           child: Icon(icon, color: AppColors.brass, size: 22),
         ),
-
         const SizedBox(width: 14),
-
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,9 +182,7 @@ class _InfoRow extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: AppColors.oxfordMuted),
               ),
-
               const SizedBox(height: 4),
-
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleMedium
