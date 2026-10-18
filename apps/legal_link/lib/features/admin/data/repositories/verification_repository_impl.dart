@@ -63,9 +63,7 @@ class VerificationRepositoryImpl implements VerificationRepository {
       sanadUrl: 'https://storage.legallink.bd/sanad/BC-DH-2009-3321.pdf',
       status: VerificationStatus.approved,
       yearsOfExperience: 15,
-      specializations: [
-        'সাংবিধানিক রিট ও ফৌজদারি আপিল (Constitutional Writs)'
-      ],
+      specializations: ['সাংবিধানিক রিট ও ফৌজদারি আপিল (Constitutional Writs)'],
       courts: ['বাংলাদেশ সুপ্রিম কোর্ট হাইকোর্ট বিভাগ (Supreme Court)'],
       districts: [],
       languages: ['bn'],

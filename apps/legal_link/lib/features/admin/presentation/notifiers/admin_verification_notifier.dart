@@ -28,14 +28,11 @@ class AdminVerificationState {
     return items.where((item) => item.status == filter).toList();
   }
 
-  int get pendingCount =>
-      items.where((item) => item.status.isPending).length;
+  int get pendingCount => items.where((item) => item.status.isPending).length;
 
-  int get approvedCount =>
-      items.where((item) => item.status.isApproved).length;
+  int get approvedCount => items.where((item) => item.status.isApproved).length;
 
-  int get rejectedCount =>
-      items.where((item) => item.status.isRejected).length;
+  int get rejectedCount => items.where((item) => item.status.isRejected).length;
 
   AdminVerificationState copyWith({
     List<AdvocateVerificationItem>? items,
