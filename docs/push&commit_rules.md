@@ -147,7 +147,7 @@ Every commit must be locally verified **before** `git push`. Run the full checkl
 5. **Validation:**
    ```bash
    cd edge/worker
-   npm run lint || npx tsc --noEmit
+   npm run typecheck && npm test
    ```
 6. **Golden set** (`ai/`): the 30 fixed inputs must still assert against the JSON schemas; CI stays provider-independent and free of API keys.
 
@@ -189,7 +189,7 @@ Database work additionally **must** pass the drift guard (§3.1.5) before push.
 | RLS drift guard (×2) | `psql -v ON_ERROR_STOP=1 "$LOCAL_DB_URL" -f db/tests/rls_test.sql` |
 | Flutter static analysis | `cd apps/legal_link && flutter analyze` |
 | Dart formatting | `dart format --set-exit-if-changed lib test` |
-| Worker type/lint | `cd edge/worker && npm run lint || npx tsc --noEmit` |
+| Worker typecheck + tests | `cd edge/worker && npm run typecheck && npm test` |
 | Repo state | `git status && git log -n 15 --oneline --decorate` |
 | Branch ruleset | repo → Settings → Rules → `main-protection` (or `gh api repos/Shafatcode007/LegalLink/rulesets`) |
 
