@@ -12,7 +12,12 @@ Future<void> main() async {
   await Hive.initFlutter();
   await Hive.openBox<dynamic>('auth_box');
 
-  runApp(const AppDependencyScope(child: AinSohayApp()));
+  runApp(
+    ProviderScope(
+      overrides: createDiOverrides(),
+      child: const LegalLinkApp(),
+    ),
+  );
 }
 
 /// Existing Admin surface retained for the Admin smoke test.
