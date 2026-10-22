@@ -272,6 +272,9 @@ Advocate A and B both tap Accept on the same SOS at the same moment
 | Concern | Choice | Detail | Cost |
 |---|---|---|---|
 | Edge compute | Cloudflare Workers | `llm-gateway` route namespace `/v1/*` | $0 (100k req/day) |
+| Worker framework | Hono (`hono` ^4.x) | Composable middleware + typed route handlers for `/v1/*`; runs on the Workers runtime | $0 |
+| Request validation | `@hono/zod-validator` + `zod` ^3.x | Schema validation and inferred types for every `/v1/*` body | $0 |
+| Worker testing | Vitest (`vitest` ^2.x) | Zero-server contract tests via `app.request()` (no network) | $0 |
 | KV cache | Cloudflare KV | Caches deterministic AI responses keyed by input hash | $0 |
 | Web hosting | Cloudflare Pages | Flutter Web build output, auto SSL, global CDN | $0 |
 | Object store (optional) | Cloudflare R2 | Overflow for large docs if Supabase 1 GB is exceeded | $0 (10 GB) |
@@ -1195,6 +1198,8 @@ request -> [1] JWT verify (JWKS cached 1h)
         -> [8] re-hydrate placeholders -> response + logging to Supabase (service role)
 ```
 
+**Implementation (`edge/worker/`, Hono 4.x):** the pipeline above is composed as Hono middleware and route handlers on a single `Hono<{ Bindings }>` app. CORS, the §6.7 error envelope (`app.onError`), and Zod body validation (`@hono/zod-validator`) are middleware; PII redaction lives in `src/middleware/`, and provider calls plus the deterministic `TemplateAIService` fallback live in `src/services/`. Contract tests run in Vitest against `app.request()` with no server and no network, keeping CI provider-independent (ADR-017).
+
 ### 6.5 Realtime Channels
 
 | Channel | Topic | Subscribers | Payload used for |
@@ -1950,6 +1955,7 @@ This is the most persuasive security demonstration for a legal-tech panel and th
 | ADR-014 | No public win-rate ranking | Rating/win-rate marketplace | Defamation risk and unreliable outcome data (PRD F2) |
 | ADR-015 | Soft delete + tombstones | Hard delete | Audit integrity and offline sync correctness |
 | ADR-016|Composition root `lib/app/di.dart` as the single layer-rule exemption; `accept_sos` realtime-only (never outbox-queued)|Per-feature DI files; outbox-queued accepts|One auditable exemption point; avoids an optimistic accept that flips to failed after a lost race|
+| ADR-017 | Hono (`hono` ^4.x + `@hono/zod-validator`) for the Worker `/v1/*` gateway in `edge/worker/` [C3], while Supabase PostgREST + RPCs (`[C4]`/`[C5]`) keep all DB CRUD and RLS | Raw `fetch` switch-case routing in the Worker; routing all DB CRUD through Hono | Microsecond routing, built-in CORS/JWT middleware, first-class Zod type inference and zero-server `app.request()` tests in Vitest — with no extra hop and no bypass of Postgres RLS on core data paths |
 
 ## 18. Technical Risks and Debt Register
 
