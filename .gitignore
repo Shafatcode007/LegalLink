@@ -21,6 +21,7 @@ build/
 db/.temp/
 
 # Node / Edge Workers
+node_modules
 node_modules/
 .wrangler/
 

@@ -535,5 +535,248 @@ begin
   delete from advocates where profile_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 end $$;
 
+-- =====================================================================
+-- Sprint 2 (Task 2) — accept_sos: single-accept row lock, case creation,
+-- checklist cloning, audit + notification fan-out.
+--
+-- True two-session concurrency (dblink / two psql connections) cannot run
+-- inside this harness: every rule is one transaction, rolled back at the end
+-- (TRD §11.5 harness rules). That race demo lands in S3·W3 (sprint.md).
+-- Here we simulate the race sequentially: the second caller matches zero
+-- rows because status <> 'open', so it gets NULL (sos_already_taken) — which
+-- exercises the exact `status = 'open'` predicate that delivers the lock.
+-- =====================================================================
+
+reset role;
+
+-- Fixtures: a pending (unverified) advocate + one open SOS owned by client_a.
+do $$
+declare
+  v_adv_c uuid := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  v_sos   uuid := '55555555-5555-5555-5555-555555555501';
+begin
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values (v_adv_c, 'authenticated', 'authenticated', 'adv_c@test.local', 'x', now(), '+8801700000007', now())
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, phone) values (v_adv_c, 'advocate', '+8801700000007')
+  on conflict (id) do nothing;
+
+  insert into advocates (profile_id, bar_council_no) values (v_adv_c, 'B-1003')
+  on conflict (profile_id) do nothing;
+
+  insert into sos_requests (id, client_id, thana, district, court, contact_phone, status)
+  values (v_sos, '11111111-1111-1111-1111-111111111111', 'Ramna', 'Dhaka',
+          'Dhaka CMM Court 1', '+8801711111111', 'open')
+  on conflict (id) do nothing;
+
+  raise notice 'S2-T2 fixtures ready (pending advocate cccc, open SOS 5555)';
+end $$;
+
+-- S2-T2-1 — unverified advocate gets not_verified_advocate
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_row sos_requests;
+begin
+  begin
+    v_row := accept_sos('55555555-5555-5555-5555-555555555501');
+    raise exception 'S2-T2-1 FAIL: unverified advocate accepted an open SOS';
+  exception when others then
+    if sqlerrm = 'not_verified_advocate' then
+      raise notice 'PASS S2-T2-1: unverified advocate rejected';
+    elsif sqlerrm like 'S2-T2-1 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-T2-1 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-T2-2 — verified advocate A accepts; row lock returns the accepted SOS
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_row sos_requests;
+begin
+  v_row := accept_sos('55555555-5555-5555-5555-555555555501');
+  if v_row is null then
+    raise exception 'S2-T2-2 FAIL: first accept returned NULL (race lost)';
+  end if;
+  if v_row.status <> 'accepted'
+     or v_row.advocate_id <> 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+     or v_row.accepted_at is null then
+    raise exception 'S2-T2-2 FAIL: accept did not flip status/advocate/accepted_at (%)', v_row;
+  end if;
+  raise notice 'PASS S2-T2-2: advocate A won the accept lock';
+end $$;
+
+-- S2-T2-3 — case created from the accepted SOS
+reset role;
+do $$
+declare v_case uuid; v_n int;
+begin
+  select id into v_case from cases where sos_id = '55555555-5555-5555-5555-555555555501';
+  if not found or v_case is null then
+    raise exception 'S2-T2-3 FAIL: no case created for accepted SOS';
+  end if;
+  select count(*) into v_n from cases where sos_id = '55555555-5555-5555-5555-555555555501';
+  if v_n <> 1 then
+    raise exception 'S2-T2-3 FAIL: % cases created for one SOS (1:1 broken)', v_n;
+  end if;
+  if (select case_type from cases where sos_id = '55555555-5555-5555-5555-555555555501') <> 'bail' then
+    raise exception 'S2-T2-3 FAIL: SOS-born case must be case_type=bail';
+  end if;
+  if (select state from cases where sos_id = '55555555-5555-5555-5555-555555555501') <> 'active' then
+    raise exception 'S2-T2-3 FAIL: case state must be active';
+  end if;
+  raise notice 'PASS S2-T2-3: bail case created 1:1 with the SOS';
+end $$;
+
+-- S2-T2-4 — active bail checklist templates cloned as suggested_pending_advocate
+do $$
+declare v_n int; v_tmpl int;
+begin
+  select count(*) into v_n from checklist_items
+   where case_id = (select id from cases where sos_id = '55555555-5555-5555-5555-555555555501');
+  select count(*) into v_tmpl from checklist_templates
+   where active and case_type = 'bail';
+  if v_tmpl = 0 then
+    raise exception 'S2-T2-4 FAIL: no active bail templates to clone (fixture problem)';
+  end if;
+  if v_n <> v_tmpl then
+    raise exception 'S2-T2-4 FAIL: cloned % items, expected % bail templates', v_n, v_tmpl;
+  end if;
+  select count(*) into v_n from checklist_items ci
+   where ci.case_id = (select id from cases where sos_id = '55555555-5555-5555-5555-555555555501')
+     and ci.status <> 'suggested_pending_advocate';
+  if v_n <> 0 then
+    raise exception 'S2-T2-4 FAIL: % cloned items not suggested_pending_advocate', v_n;
+  end if;
+  select count(*) into v_n from checklist_items ci
+   where ci.case_id = (select id from cases where sos_id = '55555555-5555-5555-5555-555555555501')
+     and ci.template_id not in (select id from checklist_templates where active and case_type = 'bail');
+  if v_n <> 0 then
+    raise exception 'S2-T2-4 FAIL: % cloned items reference non-bail templates', v_n;
+  end if;
+  raise notice 'PASS S2-T2-4: % bail templates cloned as suggested_pending_advocate', v_tmpl;
+end $$;
+
+-- S2-T2-5 — audit row sos.accept
+reset role;
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from audit_logs
+   where action = 'sos.accept'
+     and entity = 'sos_requests'
+     and entity_id = '55555555-5555-5555-5555-555555555501'
+     and actor_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+     and actor_role = 'advocate';
+  if v_n <> 1 then
+    raise exception 'S2-T2-5 FAIL: sos.accept audit row missing (%)', v_n;
+  end if;
+  raise notice 'PASS S2-T2-5: sos.accept audit row written';
+end $$;
+
+-- S2-T2-6 — notification to client with dedupe key
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from notifications
+   where user_id = '11111111-1111-1111-1111-111111111111'
+     and kind = 'sos.accepted'
+     and dedupe_key = 'sos.accepted:55555555-5555-5555-5555-555555555501';
+  if v_n <> 1 then
+    raise exception 'S2-T2-6 FAIL: client notification missing (%)', v_n;
+  end if;
+  raise notice 'PASS S2-T2-6: client notification fan-out';
+end $$;
+
+-- S2-T2-7 — second advocate B loses the race (NULL / sos_already_taken)
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare v_row sos_requests;
+begin
+  v_row := accept_sos('55555555-5555-5555-5555-555555555501');
+  if v_row is not null then
+    raise exception 'S2-T2-7 FAIL: second accept did not return NULL';
+  end if;
+  raise notice 'PASS S2-T2-7a: second advocate got NULL (sos_already_taken)';
+end $$;
+
+-- RLS isolation: advocate B cannot even see advocate A's case row
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from cases
+   where sos_id = '55555555-5555-5555-5555-555555555501';
+  if v_n <> 0 then
+    raise exception 'S2-T2-7 FAIL: advocate B can see advocate A''s case (n=%)', v_n;
+  end if;
+  raise notice 'PASS S2-T2-7b: B cannot see A''s case (RLS isolation)';
+end $$;
+
+-- Superuser check: exactly one case, still owned by advocate A
+reset role;
+do $$
+declare v_n int; v_all_adv_a boolean;
+begin
+  select count(*), bool_and(advocate_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') into v_n, v_all_adv_a from cases
+   where sos_id = '55555555-5555-5555-5555-555555555501';
+  if v_n <> 1 or not v_all_adv_a then
+    raise exception 'S2-T2-7 FAIL: race lost but case/advocate changed (n=%, all_adv_a=%)', v_n, v_all_adv_a;
+  end if;
+  raise notice 'PASS S2-T2-7c: exactly one case, advocate_id still A';
+end $$;
+
+-- S2-T2-8 — create_case_from_sos is internal-only (no execute grant to authenticated)
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform create_case_from_sos('55555555-5555-5555-5555-555555555501');
+    raise exception 'S2-T2-8 FAIL: authenticated caller executed internal RPC';
+  exception when others then
+    if sqlstate = '42501' then
+      raise notice 'PASS S2-T2-8: create_case_from_sos denied to authenticated (42501)';
+    elsif sqlerrm like 'S2-T2-8 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-T2-8 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-T2-9 — accept on a non-existent / closed SOS returns NULL (no row to lock)
+do $$
+declare v_row sos_requests;
+begin
+  v_row := accept_sos('00000000-0000-0000-0000-000000000000');
+  if v_row is not null then
+    raise exception 'S2-T2-9 FAIL: accept of unknown SOS returned a row';
+  end if;
+  raise notice 'PASS S2-T2-9: accept of unknown SOS returns NULL';
+end $$;
+
+-- Age the S2-T2 SOS fixture outside the 24h window so T4 rate-limit tests start at 0
+reset role;
+update sos_requests set created_at = now() - interval '2 days'
+ where id = '55555555-5555-5555-5555-555555555501';
+
+-- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'
