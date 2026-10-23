@@ -1,0 +1,93 @@
+name: deploy-web
+
+# Flutter Web -> Cloudflare Pages. PRs get a preview URL comment; main deploys
+# production. One-time setup (see .env.example):
+#   npx wrangler pages project create legallink --production-branch=main
+#   repo secrets: CLOUDFLARE_API_TOKEN (Pages:Edit), CLOUDFLARE_ACCOUNT_ID
+# Without those secrets the build still runs and the deploy is skipped.
+# Optional SUPABASE_URL + SUPABASE_ANON_KEY (staging) enable the PostgREST smoke test.
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/legal_link/**', '.github/workflows/deploy-web.yml']
+  pull_request:
+    branches: [main]
+    paths: ['apps/legal_link/**', '.github/workflows/deploy-web.yml']
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Build Flutter Web
+        working-directory: apps/legal_link
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      - name: Deploy to Cloudflare Pages
+        id: pages
+        if: env.CF_TOKEN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.149.0'
+          command: >-
+            pages deploy apps/legal_link/build/web
+            --project-name=legallink
+            --branch=${{ github.head_ref || github.ref_name }}
+
+      # TRD §11.4: smoke test `/` and one PostgREST call after every deploy.
+      - name: Smoke test deployed site
+        if: steps.pages.outputs.deployment-url != ''
+        env:
+          URL: ${{ steps.pages.outputs.deployment-url }}
+        run: |
+          curl -fsS --retry 10 --retry-delay 15 --retry-all-errors -o /tmp/index.html "$URL/"
+          grep -q 'flutter_bootstrap.js' /tmp/index.html
+
+      - name: Smoke test PostgREST
+        if: steps.pages.outputs.deployment-url != '' && env.SUPABASE_URL != ''
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl -fsS -o /dev/null -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.pages.outputs.deployment-url != ''
+        uses: actions/github-script@v7
+        env:
+          URL: ${{ steps.pages.outputs.deployment-url }}
+        with:
+          script: |
+            const marker = '<!-- legallink-pages-preview -->';
+            const body = `${marker}\n**Web preview:** ${process.env.URL}\n\nCommit: ${context.sha.slice(0, 7)}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
