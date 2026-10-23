@@ -1,0 +1,5 @@
+# Copy to .dev.vars (gitignored) for `wrangler dev`. Remote: `wrangler secret put <NAME>`.
+# Names match the Worker Bindings in src/env.ts.
+HF_API_KEY=
+LOCAL_LLM_URL=http://localhost:8080/v1/chat/completions
+SUPABASE_URL=http://127.0.0.1:54321

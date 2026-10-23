@@ -163,7 +163,7 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
-jwt_expiry = 3600
+jwt_expiry = 900  # TRD §4.2 / §9.1: 15-minute access token
 # JWT issuer URL. If not set, defaults to auth.external_url.
 # jwt_issuer = ""
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -257,24 +257,35 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
 template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
-max_frequency = "5s"
+max_frequency = "30s"  # PRD F1: resend allowed after 30 s
 
 # Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# Local test OTPs: the seeded demo accounts in db/seed.sql log in with 123456
+# and no SMS is sent. The JWT `app_metadata.role` claim comes from
+# auth.users.raw_app_meta_data, which complete_signup() keeps in sync.
+[auth.sms.test_otp]
+8801700000001 = "123456"  # client
+8801700000002 = "123456"  # client
+8801700000003 = "123456"  # client
+8801700000201 = "123456"  # advocate (verified)
+8801700000202 = "123456"  # advocate (verified)
+8801700000203 = "123456"  # advocate (pending)
+8801700000301 = "123456"  # admin
+8801700000099 = "123456"  # fresh number for the signup demo
 
 # Configure logged in session timeouts.
-# [auth.sessions]
+# TRD §4.2: 7-day refresh window; an unused session expires after 7 days.
+[auth.sessions]
 # Force log out after the specified duration.
 # timebox = "24h"
 # Force log out if the user has been inactive longer than the specified duration.
-# inactivity_timeout = "8h"
+inactivity_timeout = "168h"
 
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]
@@ -287,12 +298,14 @@ max_frequency = "5s"
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# Local only: a placeholder provider so phone auth is enabled; test_otp numbers
+# never reach Twilio. These values are NOT credentials. Staging/prod configure
+# the real provider in the Supabase dashboard.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
-# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+enabled = true
+account_sid = "local-placeholder"
+message_service_sid = "local-placeholder"
+auth_token = "local-placeholder"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
