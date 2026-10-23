@@ -24,6 +24,7 @@ db/.temp/
 node_modules
 node_modules/
 .wrangler/
+.dev.vars
 
 # AI Models (too large for Git)
 models/
