@@ -103,7 +103,7 @@ BEGIN
     rejection_reason = NULL,
     pin_hash = COALESCE(EXCLUDED.pin_hash, advocates.pin_hash),
     updated_at = NOW(),
-    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number);
+    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number)
 
   RETURNING * INTO v_row;
 
