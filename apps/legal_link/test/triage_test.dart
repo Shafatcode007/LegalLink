@@ -1,9 +1,12 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:legal_link/app/di.dart';
 import 'package:legal_link/features/triage/data/template_ai_service.dart';
 import 'package:legal_link/features/triage/data/summary_draft_mapper.dart';
 import 'package:legal_link/features/triage/data/triage_result_mapper.dart';
 import 'package:legal_link/features/triage/domain/entities/summary.dart';
 import 'package:legal_link/features/triage/domain/entities/triage.dart';
+import 'package:legal_link/features/triage/presentation/providers/ai_service_provider.dart';
 
 void main() {
   group('TemplateAIService', () {
@@ -122,5 +125,12 @@ void main() {
 
       expect(draft.disclaimerBn, canonicalSummaryDisclaimerBn);
     });
+  });
+
+  test('di.dart binds AIService to the template stub', () {
+    final container = ProviderContainer(overrides: appOverrides);
+    addTearDown(container.dispose);
+
+    expect(container.read(aiServiceProvider), isA<TemplateAIService>());
   });
 }
