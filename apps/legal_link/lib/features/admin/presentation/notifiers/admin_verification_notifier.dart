@@ -1,13 +1,17 @@
 /// Riverpod notifier for the admin verification queue.
 ///
-/// Depends on [VerificationRepository] (data layer) — the only cross-layer
-/// dependency, injected via [di.dart].
+/// Depends on the [VerificationRepository] domain interface; the concrete
+/// implementation is bound in `lib/app/di.dart` (TRD §8.1, ADR-016).
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/advocate_verification_item.dart';
-import '../../data/repositories/verification_repository_impl.dart';
+import '../../domain/repositories/verification_repository.dart';
+
+final verificationRepositoryProvider = Provider<VerificationRepository>((ref) {
+  throw StateError('VerificationRepository must be overridden in app/di.dart');
+});
 
 /// State representation for the Admin Verification Queue.
 class AdminVerificationState {
@@ -28,14 +32,11 @@ class AdminVerificationState {
     return items.where((item) => item.status == filter).toList();
   }
 
-  int get pendingCount =>
-      items.where((item) => item.status.isPending).length;
+  int get pendingCount => items.where((item) => item.status.isPending).length;
 
-  int get approvedCount =>
-      items.where((item) => item.status.isApproved).length;
+  int get approvedCount => items.where((item) => item.status.isApproved).length;
 
-  int get rejectedCount =>
-      items.where((item) => item.status.isRejected).length;
+  int get rejectedCount => items.where((item) => item.status.isRejected).length;
 
   AdminVerificationState copyWith({
     List<AdvocateVerificationItem>? items,
@@ -58,7 +59,7 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
 
   @override
   AdminVerificationState build() {
-    _repository = VerificationRepositoryImpl();
+    _repository = ref.read(verificationRepositoryProvider);
     return AdminVerificationState(items: const []);
   }
 
