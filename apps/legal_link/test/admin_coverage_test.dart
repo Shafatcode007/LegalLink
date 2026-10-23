@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:legal_link/app/di.dart';
 import 'package:legal_link/features/admin/admin.dart';
 import 'package:legal_link/shared/shared.dart';
 
@@ -56,7 +57,7 @@ void main() {
   });
 
   test('admin notifier supports loading filtering and decisions', () async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(overrides: appOverrides);
 
     addTearDown(container.dispose);
 
@@ -109,6 +110,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           key: UniqueKey(),
+          overrides: appOverrides,
           child: MaterialApp(
             home: AdvocateProfileViewScreen(advocateId: advocateId),
           ),
@@ -142,7 +144,7 @@ void main() {
   });
 
   testWidgets('admin queue renders loaded and filtered states', (tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(overrides: appOverrides);
 
     addTearDown(container.dispose);
 

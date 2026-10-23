@@ -1,11 +1,7 @@
 /// Pure-Dart domain entity for advocate verification.
 ///
 /// Zero Flutter/UI dependencies — safe to import from domain and data layers.
-enum VerificationStatus {
-  pending,
-  approved,
-  rejected,
-}
+enum VerificationStatus { pending, approved, rejected }
 
 extension VerificationStatusX on VerificationStatus {
   bool get isPending => this == VerificationStatus.pending;

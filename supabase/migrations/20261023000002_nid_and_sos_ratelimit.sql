@@ -103,7 +103,7 @@ BEGIN
     rejection_reason = NULL,
     pin_hash = COALESCE(EXCLUDED.pin_hash, advocates.pin_hash),
     updated_at = NOW(),
-    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number);
+    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number)
 
   RETURNING * INTO v_row;
 
@@ -119,7 +119,7 @@ BEGIN
 
   RETURN v_row;
 END;
-$$
+$$;
 
 REVOKE EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) FROM public;
 GRANT EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) TO authenticated;

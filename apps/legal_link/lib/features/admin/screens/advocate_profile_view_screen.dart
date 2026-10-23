@@ -163,10 +163,10 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Expanded(
-                      child: Text(
-                        advocate.courts.isNotEmpty
-                            ? advocate.courts.first
-                            : '—',
+                        child: Text(
+                          advocate.courts.isNotEmpty
+                              ? advocate.courts.first
+                              : '—',
                           style: AppTypography.banglaBody(
                             fontSize: 16,
                             color: AppColors.oxfordSoft,
