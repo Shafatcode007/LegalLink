@@ -34,10 +34,26 @@ class MockAdminVerificationRepository implements AdminVerificationRepository {
   }
 
   @override
-  Future<void> updateStatus(String id, VerificationStatus status) async {
+  Future<void> updateStatus(
+    String id,
+    VerificationStatus status, {
+    String? reason,
+  }) async {
     // Simulated network write latency
     await Future.delayed(const Duration(milliseconds: 600));
-    _dataSource.updateStatus(id, status);
+    _dataSource.updateStatus(id, status, reason: reason);
+  }
+
+  @override
+  Future<String?> getDocumentSignedUrl(
+    String storagePath, {
+    Duration expiresIn = const Duration(minutes: 15),
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    final cleanPath = storagePath.startsWith('http')
+        ? storagePath.split('?').first
+        : 'https://storage.legallink.bd/$storagePath';
+    return '$cleanPath?token=exp_15m_signed_sec_preview';
   }
 
   @override

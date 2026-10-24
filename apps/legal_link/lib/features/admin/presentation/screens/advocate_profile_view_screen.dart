@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/shared.dart';
 import '../providers/admin_verification_provider.dart';
+import '../widgets/document_preview_dialog.dart';
 import '../widgets/verification_status_chip.dart';
 
 /// Screen displaying full advocate profile and credentials for administrative review.
@@ -219,10 +220,50 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Document Preview Section (Sanad)
-            Text(
-              'বার সনদপত্র যাচাই (Sanad Document)',
-              style: AppTypography.displayHeading(fontSize: 18),
+            // Document Preview Section (Sanad with 15-min Signed URL)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'বার সনদপত্র যাচাই (Sanad Document)',
+                  style: AppTypography.displayHeading(fontSize: 18),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: advocate.isSignedUrlValid
+                        ? AppColors.brassWash
+                        : AppColors.parchmentElevated,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.stone),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 13,
+                        color: advocate.isSignedUrlValid
+                            ? AppColors.brass
+                            : AppColors.stoneText,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '১৫মি. সাইনড ইউআরএল',
+                        style: AppTypography.caption(
+                          fontSize: 11,
+                          color: advocate.isSignedUrlValid
+                              ? AppColors.brass
+                              : AppColors.stoneText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Container(
@@ -264,7 +305,7 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              advocate.sanadUrl?.split('/').last ?? '—',
+                              advocate.sanadUrl?.split('/').last ?? 'sanad.pdf',
                               style: AppTypography.uiBody(
                                 fontSize: 13,
                                 color: AppColors.oxfordMuted,
@@ -273,44 +314,85 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      MinTapTarget(
+                        minHeight: 40,
+                        minWidth: 48,
+                        child: AppButton.secondary(
+                          label: 'প্রিভিউ দেখুন',
+                          onPressed: () {
+                            DocumentPreviewDialog.show(
+                              context,
+                              advocate: advocate,
+                              onApprove: () => ref
+                                  .read(adminVerificationProvider.notifier)
+                                  .approve(advocate.id),
+                              onReject: () => ref
+                                  .read(adminVerificationProvider.notifier)
+                                  .reject(advocate.id),
+                              onRefreshSignedUrl: () => ref
+                                  .read(adminVerificationProvider.notifier)
+                                  .getSignedUrlFor(advocate.id),
+                            );
+                          },
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Mock Document Preview Frame
-                  Container(
-                    height: 160,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.parchmentElevated,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.stone),
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.verified_user_outlined,
-                          size: 40,
-                          color: AppColors.brass,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'সনদপত্র স্ক্যান প্রিভিউ (${advocate.barCouncilNo})',
-                          style: AppTypography.banglaBody(
-                            fontSize: 16,
-                            color: AppColors.oxfordSoft,
+                  // Document Preview Frame with Signed URL
+                  InkWell(
+                    onTap: () {
+                      DocumentPreviewDialog.show(
+                        context,
+                        advocate: advocate,
+                        onApprove: () => ref
+                            .read(adminVerificationProvider.notifier)
+                            .approve(advocate.id),
+                        onReject: () => ref
+                            .read(adminVerificationProvider.notifier)
+                            .reject(advocate.id),
+                        onRefreshSignedUrl: () => ref
+                            .read(adminVerificationProvider.notifier)
+                            .getSignedUrlFor(advocate.id),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      height: 160,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.parchmentElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.stone),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.verified_user_outlined,
+                            size: 40,
+                            color: AppColors.brass,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Bangladesh Bar Council Certified Copy',
-                          style: AppTypography.uiBody(
-                            fontSize: 12,
-                            color: AppColors.oxfordMuted,
+                          const SizedBox(height: 8),
+                          Text(
+                            'সনদপত্র স্ক্যান প্রিভিউ (${advocate.barCouncilNo})',
+                            style: AppTypography.banglaBody(
+                              fontSize: 16,
+                              color: AppColors.oxfordSoft,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'ট্যাপ করে পূর্ণাঙ্গ প্রিভিউ ও সাইনড লিংক দেখুন →',
+                            style: AppTypography.uiBody(
+                              fontSize: 12,
+                              color: AppColors.brass,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -28,9 +28,12 @@ class AdvocateVerificationItem {
     String? courtDivision,
     String? sanadDocUrl,
     String? sanadUrl,
+    this.sanadSignedUrl,
     this.phone = '+880 1711-000000',
     this.nidNumber,
     this.nidUrl,
+    this.nidSignedUrl,
+    this.signedUrlExpiresAt,
     this.yearsOfExperience = 8,
     String? specialization,
     List<String>? specializations,
@@ -55,9 +58,12 @@ class AdvocateVerificationItem {
   final String? _courtDivision;
   final String? _sanadDocUrl;
   final String? _sanadUrl;
+  final String? sanadSignedUrl;
   final String phone;
   final String? nidNumber;
   final String? nidUrl;
+  final String? nidSignedUrl;
+  final DateTime? signedUrlExpiresAt;
   final int yearsOfExperience;
   final String? _specialization;
   final List<String>? _specializations;
@@ -83,6 +89,13 @@ class AdvocateVerificationItem {
   String? get sanadUrl => _sanadUrl ?? _sanadDocUrl;
   String? get sanadDocUrl => _sanadDocUrl ?? _sanadUrl;
 
+  /// Effective URL for preview (prefers temporary secure signed URL per TRD ADR-011)
+  String? get effectiveSanadUrl => sanadSignedUrl ?? sanadUrl;
+
+  /// Whether current signed URL is within valid 15-minute window
+  bool get isSignedUrlValid =>
+      signedUrlExpiresAt != null && signedUrlExpiresAt!.isAfter(DateTime.now());
+
   String get specialization =>
       _specialization ??
       (_specializations != null && _specializations.isNotEmpty
@@ -103,9 +116,12 @@ class AdvocateVerificationItem {
     List<String>? courts,
     String? sanadDocUrl,
     String? sanadUrl,
+    String? sanadSignedUrl,
     String? phone,
     String? nidNumber,
     String? nidUrl,
+    String? nidSignedUrl,
+    DateTime? signedUrlExpiresAt,
     int? yearsOfExperience,
     String? specialization,
     List<String>? specializations,
@@ -125,9 +141,12 @@ class AdvocateVerificationItem {
       courts: courts ?? _courts,
       sanadDocUrl: sanadDocUrl ?? _sanadDocUrl,
       sanadUrl: sanadUrl ?? _sanadUrl,
+      sanadSignedUrl: sanadSignedUrl ?? this.sanadSignedUrl,
       phone: phone ?? this.phone,
       nidNumber: nidNumber ?? this.nidNumber,
       nidUrl: nidUrl ?? this.nidUrl,
+      nidSignedUrl: nidSignedUrl ?? this.nidSignedUrl,
+      signedUrlExpiresAt: signedUrlExpiresAt ?? this.signedUrlExpiresAt,
       yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,
       specialization: specialization ?? _specialization,
       specializations: specializations ?? _specializations,

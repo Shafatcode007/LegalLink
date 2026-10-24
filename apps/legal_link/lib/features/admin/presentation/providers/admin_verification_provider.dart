@@ -63,6 +63,21 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
     return AdminVerificationState(items: initialItems);
   }
 
+  /// Loads advocates asynchronously and resolves signed URLs
+  Future<void> load() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final items = await _repository.getAdvocates();
+      if (ref.mounted) {
+        state = state.copyWith(items: items, isLoading: false);
+      }
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
+    }
+  }
+
   /// Filter items by status (null = show all)
   void setFilter(VerificationStatus? filter) {
     if (filter == null) {
@@ -78,22 +93,60 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
     try {
       await _repository.updateStatus(id, VerificationStatus.approved);
       final updated = await _repository.getAdvocates();
-      state = state.copyWith(items: updated, isLoading: false);
+      if (ref.mounted) {
+        state = state.copyWith(items: updated, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
     }
   }
 
-  /// Reject advocate and update through repository
-  Future<void> reject(String id) async {
+  /// Reject advocate and update through repository with optional reason
+  Future<void> reject(String id, {String? reason}) async {
     state = state.copyWith(isLoading: true);
     try {
-      await _repository.updateStatus(id, VerificationStatus.rejected);
+      await _repository.updateStatus(
+        id,
+        VerificationStatus.rejected,
+        reason: reason,
+      );
       final updated = await _repository.getAdvocates();
-      state = state.copyWith(items: updated, isLoading: false);
+      if (ref.mounted) {
+        state = state.copyWith(items: updated, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
     }
+  }
+
+  /// Generates or refreshes a 15-minute temporary signed URL for document preview (ADR-011)
+  Future<String?> getSignedUrlFor(
+    String advocateId, {
+    bool isNid = false,
+  }) async {
+    final advocate = getById(advocateId);
+    if (advocate == null) return null;
+    final path = isNid ? advocate.nidUrl : advocate.sanadUrl;
+    if (path == null) return null;
+
+    final signedUrl = await _repository.getDocumentSignedUrl(path);
+    if (signedUrl != null && ref.mounted) {
+      final updated = advocate.copyWith(
+        sanadSignedUrl: isNid ? advocate.sanadSignedUrl : signedUrl,
+        nidSignedUrl: isNid ? signedUrl : advocate.nidSignedUrl,
+        signedUrlExpiresAt: DateTime.now().add(const Duration(minutes: 15)),
+      );
+      state = state.copyWith(
+        items: state.items
+            .map((i) => i.id == advocateId ? updated : i)
+            .toList(),
+      );
+    }
+    return signedUrl;
   }
 
   /// Refreshes data from repository with loading state
@@ -102,9 +155,13 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
     try {
       await _repository.refresh();
       final updated = await _repository.getAdvocates();
-      state = state.copyWith(items: updated, isLoading: false);
+      if (ref.mounted) {
+        state = state.copyWith(items: updated, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
     }
   }
 

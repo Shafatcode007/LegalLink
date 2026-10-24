@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/shared.dart';
 import '../providers/admin_verification_provider.dart';
+import '../widgets/document_preview_dialog.dart';
 import '../widgets/verification_status_chip.dart';
 import 'advocate_profile_view_screen.dart';
 
@@ -242,7 +243,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
 
-            // Document Preview Placeholder
+            // Document Preview Card with Signed URL (TRD ADR-011)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -252,29 +253,65 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.description_outlined,
-                    color: AppColors.brass,
-                    size: 22,
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.parchmentElevated,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.stone, width: 0.8),
+                    ),
+                    child: const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      color: AppColors.burgundy,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'বার কাউন্সিল সনদপত্র (Sanad Document)',
-                          style: AppTypography.banglaBody(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'বার সনদপত্র (Sanad)',
+                                style: AppTypography.banglaBody(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.brassWash,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '🔒 ১৫মি. সাইনড',
+                                style: AppTypography.caption(
+                                  fontSize: 10,
+                                  color: AppColors.brass,
+                                ).copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
-                          item.sanadUrl?.split('/').last ?? '—',
+                          item.sanadUrl?.split('/').last ?? 'sanad.pdf',
                           style: AppTypography.uiBody(
                             fontSize: 12,
                             color: AppColors.oxfordMuted,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -283,14 +320,28 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                     minHeight: 36,
                     minWidth: 48,
                     child: TextButton.icon(
-                      onPressed: () => _openProfile(context, item.id),
+                      onPressed: () {
+                        DocumentPreviewDialog.show(
+                          context,
+                          advocate: item,
+                          onApprove: () => ref
+                              .read(adminVerificationProvider.notifier)
+                              .approve(item.id),
+                          onReject: () => ref
+                              .read(adminVerificationProvider.notifier)
+                              .reject(item.id),
+                          onRefreshSignedUrl: () => ref
+                              .read(adminVerificationProvider.notifier)
+                              .getSignedUrlFor(item.id),
+                        );
+                      },
                       icon: const Icon(
                         Icons.visibility_outlined,
                         size: 16,
                         color: AppColors.brass,
                       ),
                       label: Text(
-                        'দেখুন (View)',
+                        'প্রিভিউ (Preview)',
                         style: AppTypography.uiBody(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

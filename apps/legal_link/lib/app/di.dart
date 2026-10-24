@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:riverpod/src/framework.dart' show Override;
 
-import '../features/admin/data/repositories/mock_admin_verification_repository.dart';
+import '../features/admin/data/repositories/supabase_admin_verification_repository.dart';
 import '../features/admin/domain/repositories/admin_verification_repository.dart';
 
 /// Composition Root (TRD §8.1, ADR-016).
@@ -15,7 +15,7 @@ List<Override> createDiOverrides({
 }) {
   return [
     adminVerificationRepositoryProvider.overrideWithValue(
-      adminVerificationRepository ?? MockAdminVerificationRepository(),
+      adminVerificationRepository ?? SupabaseAdminVerificationRepository(),
     ),
   ];
 }

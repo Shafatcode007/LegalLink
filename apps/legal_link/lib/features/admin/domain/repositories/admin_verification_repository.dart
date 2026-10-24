@@ -17,8 +17,18 @@ abstract class AdminVerificationRepository {
   /// Retrieves an advocate by ID.
   Future<AdvocateVerificationItem?> getById(String id);
 
-  /// Updates verification status (approved / rejected).
-  Future<void> updateStatus(String id, VerificationStatus status);
+  /// Updates verification status (approved / rejected) with optional rejection reason.
+  Future<void> updateStatus(
+    String id,
+    VerificationStatus status, {
+    String? reason,
+  });
+
+  /// Generates a temporary secure signed URL (15-min expiry) for document review (TRD ADR-011).
+  Future<String?> getDocumentSignedUrl(
+    String storagePath, {
+    Duration expiresIn = const Duration(minutes: 15),
+  });
 
   /// Refreshes data from backend source.
   Future<void> refresh();

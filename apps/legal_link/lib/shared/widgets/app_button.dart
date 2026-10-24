@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
 import '../tokens/app_typography.dart';
+import 'loading_metaphor.dart';
 import 'min_tap_target.dart';
 
 enum ButtonVariant { primary, secondary, ribbon, sos }
@@ -123,14 +124,7 @@ class _AppButtonState extends State<AppButton> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (widget.isLoading)
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(_getTextColor()),
-            ),
-          )
+          BrassArcLoader(size: 18, color: _getTextColor())
         else ...[
           if (widget.icon != null) ...[widget.icon!, const SizedBox(width: 8)],
           Flexible(

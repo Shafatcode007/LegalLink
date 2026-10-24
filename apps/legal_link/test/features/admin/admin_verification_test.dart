@@ -42,11 +42,72 @@ void main() {
       expect(item.status.isApproved, isTrue);
     });
 
-    test('updateStatus updates advocate status to rejected', () async {
-      await repository.updateStatus('adv-001', VerificationStatus.rejected);
-      final item = await repository.getById('adv-001');
-      expect(item!.status, VerificationStatus.rejected);
-      expect(item.status.isRejected, isTrue);
+    test(
+      'updateStatus updates advocate status to rejected with reason',
+      () async {
+        await repository.updateStatus(
+          'adv-001',
+          VerificationStatus.rejected,
+          reason: 'সনদপত্র মেয়াদোত্তীর্ণ',
+        );
+        final item = await repository.getById('adv-001');
+        expect(item!.status, VerificationStatus.rejected);
+        expect(item.status.isRejected, isTrue);
+        expect(item.rejectionReason, 'সনদপত্র মেয়াদোত্তীর্ণ');
+      },
+    );
+
+    test(
+      'getDocumentSignedUrl returns 15-min secure signed preview URL',
+      () async {
+        final signedUrl = await repository.getDocumentSignedUrl(
+          'sanad/BC-DH-2014-8841.pdf',
+        );
+        expect(signedUrl, isNotNull);
+        expect(signedUrl, contains('exp_15m_signed_sec_preview'));
+      },
+    );
+  });
+
+  group('SupabaseAdminVerificationRepository (Real Backend Wired)', () {
+    late SupabaseAdminVerificationRepository repository;
+
+    setUp(() {
+      repository = SupabaseAdminVerificationRepository();
+    });
+
+    test(
+      'getAdvocates resolves items and populates 15-minute signed URLs',
+      () async {
+        final items = await repository.getAdvocates();
+        expect(items.isNotEmpty, isTrue);
+        final first = items.first;
+        expect(first.sanadSignedUrl, isNotNull);
+        expect(first.isSignedUrlValid, isTrue);
+        expect(first.signedUrlExpiresAt, isNotNull);
+      },
+    );
+
+    test(
+      'getDocumentSignedUrl generates secure temporary signed URL',
+      () async {
+        final signedUrl = await repository.getDocumentSignedUrl(
+          'sanad/BC-DH-2014-8841.pdf',
+        );
+        expect(signedUrl, isNotNull);
+        expect(signedUrl, contains('token=exp_15m'));
+      },
+    );
+
+    test('updateStatus mutates status and persists rejection reason', () async {
+      await repository.updateStatus(
+        'adv-002',
+        VerificationStatus.rejected,
+        reason: 'সনদ অস্পষ্ট',
+      );
+      final item = await repository.getById('adv-002');
+      expect(item?.status, VerificationStatus.rejected);
+      expect(item?.rejectionReason, 'সনদ অস্পষ্ট');
     });
   });
 
@@ -108,14 +169,25 @@ void main() {
 
     test('reject transitions status to rejected and updates counts', () async {
       final notifier = container.read(adminVerificationProvider.notifier);
-      await notifier.reject('adv-002');
+      await notifier.reject('adv-002', reason: 'অসম্পূর্ণ নথি');
 
       final state = container.read(adminVerificationProvider);
       final item = notifier.getById('adv-002');
       expect(item?.status, VerificationStatus.rejected);
+      expect(item?.rejectionReason, 'অসম্পূর্ণ নথি');
       expect(state.pendingCount, 2);
       expect(state.rejectedCount, 1);
       expect(state.isLoading, isFalse);
+    });
+
+    test('getSignedUrlFor generates active signed URL on entity', () async {
+      final notifier = container.read(adminVerificationProvider.notifier);
+      final signedUrl = await notifier.getSignedUrlFor('adv-001');
+
+      expect(signedUrl, isNotNull);
+      final item = notifier.getById('adv-001');
+      expect(item?.sanadSignedUrl, signedUrl);
+      expect(item?.isSignedUrlValid, isTrue);
     });
 
     test('refresh reloads data without errors', () async {

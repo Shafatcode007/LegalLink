@@ -80,4 +80,36 @@ abstract final class AppTypography {
       height: 1.3,
     );
   }
+
+  /// Caption token per ui_ux.md §1.2 (Inter 13/12, 500 weight, tracking 0.01em)
+  static TextStyle caption({
+    double fontSize = 12,
+    FontWeight fontWeight = FontWeight.w500,
+    Color color = AppColors.oxfordMuted,
+    double height = 1.45,
+  }) {
+    return GoogleFonts.inter(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: 0.1,
+    );
+  }
+
+  /// Label token per ui_ux.md §1.2 (Inter 12/11, 600 weight, tracking 0.08em)
+  static TextStyle label({
+    double fontSize = 12,
+    FontWeight fontWeight = FontWeight.w600,
+    Color color = AppColors.oxford,
+    double height = 1.2,
+  }) {
+    return GoogleFonts.inter(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: 0.8,
+    );
+  }
 }
