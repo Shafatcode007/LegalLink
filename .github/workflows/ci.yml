@@ -13,6 +13,7 @@ jobs:
 
     env:
       PG_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
 
     steps:
       - name: Checkout Repository
@@ -28,8 +29,35 @@ jobs:
         with:
           version: 2.120.0
 
+      - name: Cache Supabase Docker images
+        id: cache-docker
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-images
+          key: supabase-docker-${{ runner.os }}-${{ hashFiles('supabase/config.toml') }}
+          restore-keys: |
+            supabase-docker-${{ runner.os }}-
+
+      - name: Load cached Docker images
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: |
+          if [ -f /tmp/docker-images/images.tar ]; then
+            docker load -i /tmp/docker-images/images.tar
+          fi
+
       - name: Start Supabase Local Engine
-        run: supabase start
+        run: |
+          supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor || {
+            echo "Initial startup attempt failed, retrying after pause..."
+            sleep 5
+            supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor
+          }
+
+      - name: Save Docker images to cache
+        if: steps.cache-docker.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/docker-images
+          docker save -o /tmp/docker-images/images.tar $(docker images -q) || true
 
       - name: Apply Migrations (deterministic, no seed)
         run: supabase db reset --local --no-seed
