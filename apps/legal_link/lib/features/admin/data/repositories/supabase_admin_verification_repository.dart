@@ -19,7 +19,7 @@ class SupabaseAdminVerificationRepository
     if (_cachedItems.isNotEmpty) {
       return _cachedItems;
     }
-    return [];
+    return _dataSource.fallback.items;
   }
 
   @override

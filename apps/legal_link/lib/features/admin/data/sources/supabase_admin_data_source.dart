@@ -19,6 +19,8 @@ class SupabaseAdminDataSource {
   final SupabaseClient? client;
   final MockAdminVerificationDataSource _fallback;
 
+  MockAdminVerificationDataSource get fallback => _fallback;
+
   SupabaseClient? get activeClient {
     if (client != null) return client;
     try {

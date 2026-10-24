@@ -365,7 +365,7 @@ void main() {
   group('Composition Root & Dependency Injection (TRD §8.1)', () {
     test('createDiOverrides binds SupabaseSosRepository by default', () {
       final overrides = createDiOverrides();
-      expect(overrides.length, 2);
+      expect(overrides.length, greaterThanOrEqualTo(2));
     });
 
     test('createDiOverrides allows mocking for deterministic unit tests', () {

@@ -224,10 +224,14 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'বার সনদপত্র যাচাই (Sanad Document)',
-                  style: AppTypography.displayHeading(fontSize: 18),
+                Expanded(
+                  child: Text(
+                    'বার সনদপত্র যাচাই (Sanad Document)',
+                    style: AppTypography.displayHeading(fontSize: 18),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -317,8 +321,26 @@ class AdvocateProfileViewScreen extends ConsumerWidget {
                       MinTapTarget(
                         minHeight: 40,
                         minWidth: 48,
-                        child: AppButton.secondary(
-                          label: 'প্রিভিউ দেখুন',
+                        child: OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: AppColors.brass,
+                          ),
+                          label: Text(
+                            'প্রিভিউ দেখুন',
+                            style: AppTypography.uiBody(
+                              fontSize: 13,
+                              color: AppColors.oxford,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.stone),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
                           onPressed: () {
                             DocumentPreviewDialog.show(
                               context,

@@ -278,7 +278,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                               child: Text(
                                 'বার সনদপত্র (Sanad)',
                                 style: AppTypography.banglaBody(
-                                  fontSize: 15,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -387,13 +387,17 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                   if (item.status.isApproved)
                     const VerifiedBadge(compact: true)
                   else
-                    Text(
-                      'আবেদনটি প্রত্যাখ্যাত হয়েছে',
-                      style: AppTypography.banglaBody(
-                        fontSize: 16,
-                        color: AppColors.burgundy,
+                    Flexible(
+                      child: Text(
+                        'আবেদনটি প্রত্যাখ্যাত হয়েছে',
+                        style: AppTypography.banglaBody(
+                          fontSize: 16,
+                          color: AppColors.burgundy,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  const SizedBox(width: 8),
                   AppButton.ribbon(
                     label: 'সম্পূর্ণ প্রোফাইল দেখুন →',
                     onPressed: () => _openProfile(context, item.id),

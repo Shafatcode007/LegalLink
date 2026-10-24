@@ -10,10 +10,7 @@ void main() {
   ) async {
     // Build LegalLinkApp and trigger a frame with composition root DI overrides.
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: createDiOverrides(),
-        child: const LegalLinkApp(),
-      ),
+      ProviderScope(overrides: appOverrides, child: const LegalLinkApp()),
     );
 
     // Verify that the queue screen header is present

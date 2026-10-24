@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_link/app/di.dart';
 import 'package:legal_link/features/admin/admin.dart';
-import 'package:legal_link/features/admin/data/data.dart';
 
 void main() {
   group('MockAdminVerificationRepository (Data Layer)', () {

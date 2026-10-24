@@ -22,8 +22,10 @@ coverage/
 db/.temp/
 
 # Node / Edge Workers
+node_modules
 node_modules/
 .wrangler/
+.dev.vars
 
 # AI Models (too large for Git)
 models/

@@ -13,7 +13,7 @@ The environment is **WSL2 Ubuntu + native Docker Engine**; the Supabase CLI is t
 | # | Rule | Enforcement |
 |---|---|---|
 | 1 | **Zero secrets.** Never commit `.env`, `.env.local`, service-role keys, `HF_API_KEY`, `FCM_SERVER_KEY`, JWT signing secrets, or Android keystores. | Pre-commit secret scan; CI fails on common secret patterns (TRD §9.5). `SUPABASE_ANON_KEY` is public by design; everything else is not. |
-| 2 | **No direct push to `main`.** All work lands through a role branch → PR → CI green → merge. | Branch protection on `main`; PR required. |
+| 2 | **No direct push to `main`.** All work lands through a role branch → PR → CI green → merge. | Active GitHub Ruleset **`main-protection`** (§1.0) rejects direct/forced pushes and deletion; PR + 1 approval required. |
 | 3 | **Contract-first coordination.** Monday contract freeze fixes all RPC signatures, Worker routes, JSON schemas, and realtime event names. No UI or AI code may change a backend contract unilaterally. | Contract changes announced at the Monday freeze or via an integration checkpoint before push. |
 | 4 | **Migrations are additive per release.** No destructive schema change without one release of dual-compatibility (expand → migrate → contract). | TRD §11.5, ADR-013, `agent_rules.md` §2. |
 | 5 | **Every RLS-touching migration ships a test update.** | TRD §11.5(5) — PRs without a `db/tests/rls_test.sql` delta are rejected. |
@@ -21,9 +21,25 @@ The environment is **WSL2 Ubuntu + native Docker Engine**; the Supabase CLI is t
 | 7 | **Zero client-side protected access.** The Flutter app never holds a service-role key; all Storage reads go through 15-minute signed URLs (ADR-011). | Code review + CI. |
 | 8 | **Immutability.** Published summaries, hearings, invoices and audit logs are archival artefacts — never edited in place (ADR-012, ADR-015). | Trigger-enforced (`audit_immutable`, `hitl_gate`). |
 | 9 | **Publish the contract before wiring DTOs.** When Role A adds/changes a table or RPC, the exact JSON request/response payload is published before Role B writes DTOs (§1.1). | Monday contract freeze; PR review. |
-| 10 | **Gitignore generated code, commit lockfiles.** Build/tool output stays ignored; `pubspec.lock` and `package-lock.json` are committed for reproducible builds (§1.3). | `.gitignore` + CI. |
+| 10 | **Gitignore generated code, commit lockfiles.** Build/tool output stays ignored; `pubspec.lock` and `package-lock.json` are committed for reproducible builds (§1.2). | `.gitignore` + CI. |
 
-### 1.1 Schema → DTO contract publication
+The guardrails below combine the **remote enforcement** of the active ruleset (§1.0) with the **three integration guardrails** that keep the three lanes compatible (§1.1–§1.3).
+
+### 1.0 Remote branch ruleset — `main-protection` (active)
+
+A repository **ruleset `main-protection`** (`enforcement: active`, `target: branch`, ref `~DEFAULT_BRANCH`) is the authoritative remote gate on `main`; local habits cannot override it:
+
+| Ruleset rule | Effect on `main` |
+|---|---|
+| `deletion` | branch deletion is rejected |
+| `non_fast_forward` | `git push --force` / `--force-with-lease` is rejected |
+| `pull_request` | every change must arrive via PR with **1 approving review**; allowed merge methods `merge`, `squash`, `rebase` |
+| `required_linear_history` | no merge bubbles — merged via **squash or rebase** only |
+| `required_status_checks` | `strict` (head must be up to date with `main`); the required-check list is currently **empty** — the team gate is `rls-drift-guard` (§5) |
+
+There are currently **no bypass actors** (even a repo admin cannot bypass), so all work lands through a role branch and PR (§5). `direct pushes`, `--force`, and `deletions` are all rejected **by the remote**.
+
+### 1.1 Integration guardrail 1 — Schema & payload contracts
 
 When Role A modifies or adds a table/RPC (e.g. `accept_sos`, `invoices`, `advocate_public`), Role A **must publish the exact JSON request/response payload** in the commit/PR description (or update the shared schema docs) **before Role B wires the feature**. The contract fixes:
 
@@ -34,7 +50,13 @@ When Role A modifies or adds a table/RPC (e.g. `accept_sos`, `invoices`, `advoca
 
 Role B must not invent DTO fields. Serialization bugs (timestamp format, null vs non-null, naming) are caught by unit tests generated from this contract.
 
-### 1.2 Realtime channel naming (immutable)
+### 1.2 Integration guardrail 2 — Lockfiles & platform independence
+
+- Commit lockfiles for reproducible, platform-independent CI: **`apps/legal_link/pubspec.lock`** and (once `edge/worker/` exists) **`edge/worker/package-lock.json`**.
+- Keep build/tool output strictly gitignored: `.dart_tool/`, `build/`, `coverage/`, `.packages`, `.pub-cache/`, `.wrangler/`, `node_modules/`, `.supabase/`.
+- Resolve lockfile conflicts by re-running the package manager (`flutter pub get` / `npm install`) — **never** hand-merge a lockfile or commit a platform-specific (WSL2 vs Windows vs macOS) resolution.
+
+### 1.3 Integration guardrail 3 — Immutable realtime channel standards
 
 Realtime channel/topic names are fixed by TRD §6.5 and **no role may alter their format unilaterally** (a common integration failure is a client topic that does not match the database publication filter):
 
@@ -46,12 +68,6 @@ Realtime channel/topic names are fixed by TRD §6.5 and **no role may alter thei
 | `admin:{queue}` | INSERT on `advocates` (verification=pending), `audit_logs` (flagged), complaints |
 
 A subscription key must be a **stable string** derived deterministically from its identifiers (a `List` identity key is forbidden — TRD §8.3), so equal inputs reuse exactly one channel.
-
-### 1.3 Generated code & lockfile rules
-
-- Keep build/tool output strictly gitignored: `.dart_tool/`, `build/`, `coverage/`, `.packages`, `.pub-cache/`, `.wrangler/`, `node_modules/`, `.supabase/`.
-- Commit **`pubspec.lock`** and (once `edge/worker/` exists) **`package-lock.json`** for reproducible CI builds.
-- Resolve lockfile conflicts by re-running `flutter pub get` / `npm install` — **never** hand-merge lockfiles or commit a platform-specific (WSL2 vs Windows vs macOS) resolution.
 
 ---
 
@@ -131,7 +147,7 @@ Every commit must be locally verified **before** `git push`. Run the full checkl
 5. **Validation:**
    ```bash
    cd edge/worker
-   npm run lint || npx tsc --noEmit
+   npm run typecheck && npm test
    ```
 6. **Golden set** (`ai/`): the 30 fixed inputs must still assert against the JSON schemas; CI stays provider-independent and free of API keys.
 
@@ -156,9 +172,9 @@ Database work additionally **must** pass the drift guard (§3.1.5) before push.
 |---|---|
 | **Branch** | `role-a/<feature>`, `role-b/<feature>`, `role-c/<feature>` |
 | **Rebase before push** | `git fetch origin main && git rebase origin/main` — keeps history linear, no merge bubbles |
-| **Never force-push** | `git push --force` / `--force-with-lease` is **prohibited** on `main` and any shared branch |
-| **PR + CI** | Open a PR to `main`; required checks: `analyze`, `test`, `rls`, `ai-golden`, `sql-lint`, `arch-lint`, `build` (TRD §11.3) |
-| **Merge** | Squash or rebase merge only after all checks are green and one reviewer approves |
+| **Ruleset** | `main-protection` (§1.0) rejects direct pushes, `--force`, and deletion on `main`; there is **no bypass actor** |
+| **PR + CI** | Open a PR to `main`; the ruleset requires **1 approving review** + linear history (`strict` up-to-date). Required status checks are **not yet enabled** on the ruleset — the team gate is `rls-drift-guard` (RLS suite ×2) plus `analyze`, `test`, `sql-lint`, `ai-golden`, `arch-lint`, `build` (TRD §11.3) |
+| **Merge** | **Squash or rebase only** (linear history enforced), once reviews are green and the head is up to date |
 | **Contract drift** | If an RPC signature / Worker route / schema changes, announce at the Monday freeze or raise an integration checkpoint **before** pushing |
 
 **Weekly rhythm (TRD §11 / `docs/sprint.md`):** Mon triage + **contract freeze** → Tue (faculty sync; all three lanes build in parallel against contracts) → Wed **integrate checkpoint** (mocks → real behind flags) → Thu harden + rehearse → Fri demo + feedback.
@@ -173,8 +189,9 @@ Database work additionally **must** pass the drift guard (§3.1.5) before push.
 | RLS drift guard (×2) | `psql -v ON_ERROR_STOP=1 "$LOCAL_DB_URL" -f db/tests/rls_test.sql` |
 | Flutter static analysis | `cd apps/legal_link && flutter analyze` |
 | Dart formatting | `dart format --set-exit-if-changed lib test` |
-| Worker type/lint | `cd edge/worker && npm run lint || npx tsc --noEmit` |
+| Worker typecheck + tests | `cd edge/worker && npm run typecheck && npm test` |
 | Repo state | `git status && git log -n 15 --oneline --decorate` |
+| Branch ruleset | repo → Settings → Rules → `main-protection` (or `gh api repos/Shafatcode007/LegalLink/rulesets`) |
 
 ---
 
@@ -183,12 +200,12 @@ Database work additionally **must** pass the drift guard (§3.1.5) before push.
 - [ ] Correct role branch; commit message follows §2 with a role scope.
 - [ ] Tests written **first** (RED → GREEN) where logic changed; coverage gate met.
 - [ ] Role checklist in §3 fully passed.
-- [ ] No secrets, no RLS bypass, no direct push to `main`.
+- [ ] No secrets, no RLS bypass; landed via a role branch + PR (no direct push to `main`; ruleset `main-protection` satisfied — 1 approval, linear history).
 - [ ] RLS-touching change includes a `db/tests/rls_test.sql` update; drift guard green ×2.
 - [ ] Contracts honored (or changed at the Monday freeze / integration checkpoint).
 - [ ] New/changed tables & RPCs published a JSON payload contract **before** client DTOs were written (§1.1).
-- [ ] Realtime channel names match TRD §6.5; no unilateral topic changes (§1.2).
-- [ ] Generated artifacts gitignored; lockfiles committed and never hand-merged (§1.3).
+- [ ] Realtime channel names match TRD §6.5; no unilateral topic changes (§1.3).
+- [ ] Generated artifacts gitignored; lockfiles committed and never hand-merged (§1.2).
 - [ ] PR CI green; reviewed and merged without force-push.
 
 ---
