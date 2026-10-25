@@ -2,5 +2,22 @@ name = "legallink-llm-gateway"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
+# Local development (`wrangler dev`, TRD §11.2): local AI server, local KV.
 [vars]
 AI_PROVIDER = "local"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "4c5359ed870a481ca0c7bb4c45323da3"
+preview_id = "9fdebab14b9b4a859d8e8b58f0790c84"
+
+# Production: deployed by .github/workflows/deploy-worker.yml on merge to main.
+# Environments do not inherit bindings, so KV is repeated here.
+# Secrets: `wrangler secret put HF_API_KEY --env prod`; add SUPABASE_URL once
+# the Supabase project exists (without it /v1/rate/check answers 503).
+[env.prod.vars]
+AI_PROVIDER = "huggingface"
+
+[[env.prod.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "4c5359ed870a481ca0c7bb4c45323da3"

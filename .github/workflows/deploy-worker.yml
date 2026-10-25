@@ -1,0 +1,95 @@
+name: deploy-worker
+
+# Cloudflare Worker CI + deploy (TRD §11.4). PRs run the §3.3 checks; merges
+# to main deploy `--env prod` and then probe /v1/ai/health. One-time setup:
+#   repo secret CLOUDFLARE_WORKERS_API_TOKEN (Workers Scripts:Edit, Workers KV Storage:Edit)
+#   repo secret CLOUDFLARE_ACCOUNT_ID (shared with deploy-web)
+# Without the token the checks still run and the deploy is skipped.
+
+on:
+  push:
+    branches: [main]
+    paths: ['edge/worker/**', 'scripts/check_cloudflare_secrets.sh', '.github/workflows/deploy-worker.yml']
+  pull_request:
+    branches: [main]
+    paths: ['edge/worker/**', 'scripts/check_cloudflare_secrets.sh', '.github/workflows/deploy-worker.yml']
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  # Superseded PR runs are cancelled; main runs (deploys) always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Worker typecheck + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: edge/worker
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: edge/worker/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    name: Deploy to Cloudflare Workers (prod)
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TOKEN_NAME: CLOUDFLARE_WORKERS_API_TOKEN
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Skip deploy without a Workers token
+        if: env.CF_TOKEN == ''
+        run: echo "::warning::CLOUDFLARE_WORKERS_API_TOKEN is not set; skipping the Worker deploy."
+
+      - name: Check Cloudflare secrets format
+        if: env.CF_TOKEN != ''
+        run: bash scripts/check_cloudflare_secrets.sh
+
+      - uses: actions/setup-node@v7
+        if: env.CF_TOKEN != ''
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: edge/worker/package-lock.json
+
+      # wrangler bundles src/ with its dependencies; the action then uses the
+      # lockfile's wrangler version.
+      - name: Install Worker dependencies
+        if: env.CF_TOKEN != ''
+        working-directory: edge/worker
+        run: npm ci
+
+      - name: Deploy
+        id: deploy
+        if: env.CF_TOKEN != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: edge/worker
+          command: deploy --env prod
+
+      - name: Health check /v1/ai/health
+        if: env.CF_TOKEN != ''
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          [ -n "$URL" ] || { echo "::error::wrangler did not report a deployment URL"; exit 1; }
+          curl -fsS --retry 10 --retry-delay 6 --retry-all-errors -o /tmp/health.json "$URL/v1/ai/health"
+          grep -q '"provider"' /tmp/health.json
+          cat /tmp/health.json
