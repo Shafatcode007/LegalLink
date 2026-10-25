@@ -189,3 +189,88 @@ class _LegalSkeletonLoaderState extends State<LegalSkeletonLoader>
     );
   }
 }
+
+/// Rotating arc loading metaphor per ui_ux.md §4.2 (Button submit & sync).
+/// Replaces generic circular progress spinners everywhere in the app.
+class BrassArcLoader extends StatefulWidget {
+  const BrassArcLoader({
+    super.key,
+    this.size = 18.0,
+    this.strokeWidth = 2.0,
+    this.color = AppColors.brass,
+  });
+
+  final double size;
+  final double strokeWidth;
+  final Color color;
+
+  @override
+  State<BrassArcLoader> createState() => _BrassArcLoaderState();
+}
+
+class _BrassArcLoaderState extends State<BrassArcLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.rotate(
+          angle: _controller.value * 2 * 3.141592653589793,
+          child: CustomPaint(
+            size: Size(widget.size, widget.size),
+            painter: _ArcPainter(
+              color: widget.color,
+              strokeWidth: widget.strokeWidth,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  const _ArcPainter({required this.color, required this.strokeWidth});
+
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final rect = Rect.fromLTWH(
+      strokeWidth / 2,
+      strokeWidth / 2,
+      size.width - strokeWidth,
+      size.height - strokeWidth,
+    );
+    canvas.drawArc(rect, 0, 4.71238898038, false, paint); // 270 degrees
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.strokeWidth != strokeWidth;
+}

@@ -8,7 +8,7 @@ void main() {
   testWidgets('Admin Verification Queue loads correctly smoke test', (
     WidgetTester tester,
   ) async {
-    // Build LegalLinkApp and trigger a frame.
+    // Build LegalLinkApp and trigger a frame with composition root DI overrides.
     await tester.pumpWidget(
       ProviderScope(overrides: appOverrides, child: const LegalLinkApp()),
     );
