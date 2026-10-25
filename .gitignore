@@ -28,7 +28,7 @@ node_modules/
 .dev.vars
 
 # AI Models (too large for Git)
-models/
+/models/
 *.gguf
 *.bin
 *.onnx
