@@ -1,4 +1,4 @@
-export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 429;
+export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 429 | 503;
 
 export class ApiError extends Error {
   constructor(
