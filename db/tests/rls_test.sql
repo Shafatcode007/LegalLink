@@ -1313,6 +1313,77 @@ begin
   raise notice 'PASS S2-RT-1: sos_requests published to supabase_realtime';
 end $$;
 
+
+-- =====================================================================
+-- Sprint 2 (Role C) — documents bucket reads (ADR-011). Supabase only
+-- issues a 15-minute signed URL to a caller who can SELECT the object, so
+-- docs_read is the gate: case parties yes, everyone else no.
+-- Case 9999...991 belongs to client_a (1111...) and advocate_a (aaaa...).
+-- =====================================================================
+reset role;
+insert into storage.objects (bucket_id, name, owner)
+values ('documents', '99999999-9999-9999-9999-999999999991/fir/fir.jpg',
+        '11111111-1111-1111-1111-111111111111');
+
+-- S2-SU-1 — the case's client can read the document
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+begin
+  if not exists (select 1 from storage.objects
+                  where bucket_id = 'documents' and name like '99999999-9999-9999-9999-999999999991/%') then
+    raise exception 'S2-SU-1 FAIL: case client cannot read its own case document';
+  end if;
+  raise notice 'PASS S2-SU-1: case client can read the case document';
+end $$;
+
+-- S2-SU-2 — the case's advocate can read the document
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+begin
+  if not exists (select 1 from storage.objects
+                  where bucket_id = 'documents' and name like '99999999-9999-9999-9999-999999999991/%') then
+    raise exception 'S2-SU-2 FAIL: assigned advocate cannot read the case document';
+  end if;
+  raise notice 'PASS S2-SU-2: assigned advocate can read the case document';
+end $$;
+
+-- S2-SU-3 — another client cannot read it
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '22222222-2222-2222-2222-222222222222', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from storage.objects
+   where bucket_id = 'documents' and name like '99999999-9999-9999-9999-999999999991/%';
+  if v_n <> 0 then
+    raise exception 'S2-SU-3 FAIL: another client read % case document(s)', v_n;
+  end if;
+  raise notice 'PASS S2-SU-3: another client cannot read the case document';
+end $$;
+
+-- S2-SU-4 — an advocate not on the case cannot read it
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from storage.objects
+   where bucket_id = 'documents' and name like '99999999-9999-9999-9999-999999999991/%';
+  if v_n <> 0 then
+    raise exception 'S2-SU-4 FAIL: unassigned advocate read % case document(s)', v_n;
+  end if;
+  raise notice 'PASS S2-SU-4: unassigned advocate cannot read the case document';
+end $$;
+
 -- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'
