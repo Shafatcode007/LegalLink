@@ -1294,6 +1294,25 @@ begin
   raise notice 'PASS S2-T5-3: SOS accepted after the 24 h window';
 end $$;
 
+
+-- =====================================================================
+-- Sprint 2 (Role C) — sos:{district} realtime (TRD §6.5). Realtime only
+-- broadcasts tables in the supabase_realtime publication, and applies the
+-- table's RLS per subscriber (sos_advocate_select_open).
+-- =====================================================================
+reset role;
+
+-- S2-RT-1 — sos_requests is published to Supabase Realtime
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables
+                  where pubname = 'supabase_realtime'
+                    and schemaname = 'public' and tablename = 'sos_requests') then
+    raise exception 'S2-RT-1 FAIL: sos_requests is not in the supabase_realtime publication';
+  end if;
+  raise notice 'PASS S2-RT-1: sos_requests published to supabase_realtime';
+end $$;
+
 -- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'
