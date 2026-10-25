@@ -3,3 +3,6 @@
 HF_API_KEY=
 LOCAL_LLM_URL=http://localhost:8080/v1/chat/completions
 SUPABASE_URL=http://127.0.0.1:54321
+# Optional: a static JWKS JSON to verify tokens offline. When unset the Worker
+# fetches ${SUPABASE_URL}/auth/v1/.well-known/jwks.json (asymmetric keys).
+SUPABASE_JWKS=
