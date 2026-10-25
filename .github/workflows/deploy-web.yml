@@ -10,14 +10,15 @@ name: deploy-web
 on:
   push:
     branches: [main]
-    paths: ['apps/legal_link/**', '.github/workflows/deploy-web.yml']
+    paths: ['apps/legal_link/**', 'scripts/check_cloudflare_secrets.sh', '.github/workflows/deploy-web.yml']
   pull_request:
     branches: [main]
-    paths: ['apps/legal_link/**', '.github/workflows/deploy-web.yml']
+    paths: ['apps/legal_link/**', 'scripts/check_cloudflare_secrets.sh', '.github/workflows/deploy-web.yml']
 
 concurrency:
   group: deploy-web-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs are cancelled; main runs (deploys) always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -31,7 +32,7 @@ jobs:
       CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -49,22 +50,12 @@ jobs:
       # opaque 6111/9109 errors. Never prints the token itself.
       - name: Check Cloudflare secrets format
         if: env.CF_TOKEN != ''
-        run: |
-          fail() { echo "::error::$1"; exit 1; }
-          case "$CF_TOKEN" in
-            Bearer*|bearer*) fail "CLOUDFLARE_API_TOKEN starts with 'Bearer'. Save only the token itself." ;;
-            \"*|\'*|*\"|*\') fail "CLOUDFLARE_API_TOKEN is wrapped in quotes. Save it without quotes." ;;
-            curl\ *|http://*|https://*) fail "CLOUDFLARE_API_TOKEN looks like a command or URL. Save only the token." ;;
-            *[[:space:]]*) fail "CLOUDFLARE_API_TOKEN contains spaces or line breaks. Re-paste only the token, on one line." ;;
-          esac
-          [ "${#CF_TOKEN}" -ge 30 ] || fail "CLOUDFLARE_API_TOKEN is too short (${#CF_TOKEN} characters). Did you copy the token ID instead of the token?"
-          echo "$CF_ACCOUNT" | grep -Eq '^[0-9a-f]{32}$' || fail "CLOUDFLARE_ACCOUNT_ID must be the 32-character hex account ID (are the two secrets swapped?)."
-          echo "Cloudflare secrets look well-formed (token length ${#CF_TOKEN})."
+        run: bash scripts/check_cloudflare_secrets.sh
 
       - name: Deploy to Cloudflare Pages
         id: pages
         if: env.CF_TOKEN != ''
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -92,7 +83,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request' && steps.pages.outputs.deployment-url != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           URL: ${{ steps.pages.outputs.deployment-url }}
         with:
