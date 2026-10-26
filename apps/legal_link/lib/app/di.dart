@@ -18,6 +18,9 @@ import '../features/admin/domain/repositories/admin_verification_repository.dart
 import '../features/admin/presentation/notifiers/admin_verification_notifier.dart';
 import '../features/auth/data/mock_auth_repository.dart';
 import '../features/auth/presentation/providers/auth_controller.dart';
+import '../features/documents/data/supabase_document_url_service.dart';
+import '../features/documents/data/unavailable_document_url_service.dart';
+import '../features/documents/domain/document_url_service.dart';
 import '../features/sos/data/repositories/noop_sos_realtime_repository.dart';
 import '../features/sos/data/repositories/supabase_sos_realtime_repository.dart';
 import '../features/sos/data/repositories/supabase_sos_repository.dart';
@@ -51,6 +54,11 @@ List<Override> createDiOverrides({
       (ref) => config.hasSupabase
           ? SupabaseSosRealtimeRepository(Supabase.instance.client)
           : const NoopSosRealtimeRepository(),
+    ),
+    documentUrlServiceProvider.overrideWith(
+      (ref) => config.hasSupabase
+          ? SupabaseDocumentUrlService.fromClient(Supabase.instance.client)
+          : const UnavailableDocumentUrlService(),
     ),
   ];
 }
