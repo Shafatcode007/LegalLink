@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'app/di.dart';
+import 'core/env/app_config.dart';
 import 'features/admin/admin.dart';
 import 'shared/shared.dart';
 
@@ -12,7 +14,15 @@ Future<void> main() async {
   await Hive.initFlutter();
   await Hive.openBox<dynamic>('auth_box');
 
-  runApp(const AppDependencyScope(child: AinSohayApp()));
+  final config = AppConfig.fromEnvironment();
+  if (config.hasSupabase) {
+    await Supabase.initialize(
+      url: config.supabaseUrl,
+      publishableKey: config.supabaseAnonKey,
+    );
+  }
+
+  runApp(AppDependencyScope(config: config, child: const AinSohayApp()));
 }
 
 /// Existing Admin surface retained for the Admin smoke test.

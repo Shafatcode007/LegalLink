@@ -10,6 +10,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 // ignore: implementation_imports
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../core/env/app_config.dart';
 import '../features/admin/data/repositories/supabase_admin_verification_repository.dart';
 import '../features/admin/data/repositories/verification_repository_impl.dart';
 import '../features/admin/domain/repositories/admin_verification_repository.dart';
@@ -23,10 +24,12 @@ import '../features/triage/presentation/providers/ai_service_provider.dart';
 
 export '../features/admin/presentation/providers/admin_verification_provider.dart';
 
-/// Composition Root overrides factory.
+/// Composition Root overrides factory. [config] selects Supabase-backed
+/// services when the build has a Supabase URL and key.
 List<Override> createDiOverrides({
   AdminVerificationRepository? adminVerificationRepository,
   SosRepository? sosRepository,
+  AppConfig config = const AppConfig(),
 }) {
   return [
     adminVerificationRepositoryProvider.overrideWith(
@@ -62,15 +65,20 @@ Widget withDependencyInjection({
 }
 
 class AppDependencyScope extends StatelessWidget {
-  const AppDependencyScope({required this.child, super.key});
+  const AppDependencyScope({
+    required this.child,
+    this.config = const AppConfig(),
+    super.key,
+  });
 
   final Widget child;
+  final AppConfig config;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
-        ...createDiOverrides(),
+        ...createDiOverrides(config: config),
         authRepositoryProvider.overrideWith((ref) {
           final box = Hive.box<dynamic>('auth_box');
           return MockAuthRepository(box);
