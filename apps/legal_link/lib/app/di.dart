@@ -8,11 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import '../features/admin/data/admin_verification_repository.dart';
-import '../features/admin/data/mock_admin_verification_repository.dart';
+import '../features/admin/domain/repositories/admin_verification_repository.dart';
+import '../features/admin/data/repositories/mock_admin_verification_repository.dart';
 import '../features/admin/data/repositories/supabase_admin_verification_repository.dart';
 import '../features/admin/data/repositories/verification_repository_impl.dart';
-import '../features/admin/domain/repositories/admin_verification_repository.dart';
 import '../features/auth/data/mock_auth_repository.dart';
 import '../features/auth/presentation/providers/auth_controller.dart';
 import '../features/sos/data/repositories/supabase_sos_repository.dart';

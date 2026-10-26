@@ -28,6 +28,20 @@ begin
   insert into advocates (profile_id, bar_council_no) values (v_adv_c, 'B-1003')
   on conflict (profile_id) do nothing;
 
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values ('11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'client_a@test.local', 'x', now(), '+8801711111111', now())
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, phone) values ('11111111-1111-1111-1111-111111111111', 'client', '+8801711111111')
+  on conflict (id) do nothing;
+
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'client_b@test.local', 'x', now(), '+8801711000002', now())
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, phone) values ('22222222-2222-2222-2222-222222222222', 'client', '+8801711000002')
+  on conflict (id) do nothing;
+
   insert into sos_requests (id, client_id, thana, district, court, contact_phone, status)
   values (v_sos, '11111111-1111-1111-1111-111111111111', 'Ramna', 'Dhaka',
           'Dhaka CMM Court 1', '+8801711111111', 'open')
@@ -564,6 +578,20 @@ begin
 
   insert into advocates (profile_id, bar_council_no) values (v_adv_c, 'B-1003')
   on conflict (profile_id) do nothing;
+
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values ('11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'client_a@test.local', 'x', now(), '+8801711111111', now())
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, phone) values ('11111111-1111-1111-1111-111111111111', 'client', '+8801711111111')
+  on conflict (id) do nothing;
+
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'client_b@test.local', 'x', now(), '+8801711000002', now())
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, phone) values ('22222222-2222-2222-2222-222222222222', 'client', '+8801711000002')
+  on conflict (id) do nothing;
 
   insert into sos_requests (id, client_id, thana, district, court, contact_phone, status)
   values (v_sos, '11111111-1111-1111-1111-111111111111', 'Ramna', 'Dhaka',
