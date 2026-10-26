@@ -119,7 +119,7 @@ BEGIN
 
   RETURN v_row;
 END;
-$$
+$$;
 
 REVOKE EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) FROM public;
 GRANT EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) TO authenticated;
