@@ -104,7 +104,6 @@ BEGIN
     pin_hash = COALESCE(EXCLUDED.pin_hash, advocates.pin_hash),
     updated_at = NOW(),
     nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number)
-
   RETURNING * INTO v_row;
 
   INSERT INTO audit_logs (actor_id, actor_role, action, entity, entity_id, metadata)
