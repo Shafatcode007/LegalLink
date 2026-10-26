@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 // ignore: implementation_imports
 import 'package:riverpod/src/framework.dart' show Override;
 
@@ -17,7 +18,10 @@ import '../features/admin/domain/repositories/admin_verification_repository.dart
 import '../features/admin/presentation/notifiers/admin_verification_notifier.dart';
 import '../features/auth/data/mock_auth_repository.dart';
 import '../features/auth/presentation/providers/auth_controller.dart';
+import '../features/sos/data/repositories/noop_sos_realtime_repository.dart';
+import '../features/sos/data/repositories/supabase_sos_realtime_repository.dart';
 import '../features/sos/data/repositories/supabase_sos_repository.dart';
+import '../features/sos/domain/repositories/sos_realtime_repository.dart';
 import '../features/sos/domain/repositories/sos_repository.dart';
 import '../features/triage/data/template_ai_service.dart';
 import '../features/triage/presentation/providers/ai_service_provider.dart';
@@ -43,6 +47,11 @@ List<Override> createDiOverrides({
       (ref) => VerificationRepositoryImpl(),
     ),
     aiServiceProvider.overrideWith((ref) => TemplateAIService()),
+    sosRealtimeRepositoryProvider.overrideWith(
+      (ref) => config.hasSupabase
+          ? SupabaseSosRealtimeRepository(Supabase.instance.client)
+          : const NoopSosRealtimeRepository(),
+    ),
   ];
 }
 
