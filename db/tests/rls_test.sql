@@ -778,5 +778,190 @@ update sos_requests set created_at = now() - interval '2 days'
  where id = '55555555-5555-5555-5555-555555555501';
 
 -- =====================================================================
+-- Sprint 2 (Task 3) — 3-attempt re-application limit (migration 20261023000001)
+-- Dedicated advocate eeee so the HITL fixtures above stay untouched.
+-- =====================================================================
+reset role;
+do $$
+declare v_adv_e uuid := 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+begin
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values (v_adv_e, 'authenticated', 'authenticated', 'adv_e@test.local', 'x', now(), '+8801711000008', now());
+  insert into profiles (id, role, phone) values (v_adv_e, 'advocate', '+8801711000008');
+  insert into advocates (profile_id, bar_council_no, attempts) values (v_adv_e, 'B-1100', 2);
+  raise notice 'S2-T3 fixture ready (advocate eeee, attempts=2)';
+end $$;
+
+-- S2-T3-1 — attempts=2: submit_verification still allowed, attempts preserved
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare v_row advocates;
+begin
+  v_row := submit_verification(
+    p_bar_council_no => 'B-1100', p_courts => array['Dhaka'], p_districts => array['Dhaka'],
+    p_specializations => array['bail'], p_languages => array['bn'],
+    p_fee_min_bdt => 5000, p_fee_max_bdt => 10000, p_pin => '1234');
+  if v_row.attempts <> 2 then
+    raise exception 'S2-T3-1 FAIL: attempts changed to % (expected 2)', v_row.attempts;
+  end if;
+  raise notice 'PASS S2-T3-1: submission with attempts=2 succeeded';
+end $$;
+
+-- S2-T3-2 — attempts=3: submit_verification raises max_verification_attempts_reached
+reset role;
+update advocates set attempts = 3 where profile_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform submit_verification(p_bar_council_no => 'B-1101');
+    raise exception 'S2-T3-2 FAIL: submit_verification succeeded with attempts=3';
+  exception when others then
+    if sqlerrm like 'max_verification_attempts_reached%' then
+      raise notice 'PASS S2-T3-2: submit_verification blocked at attempts=3';
+    elsif sqlerrm like 'S2-T3-2 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-T3-2 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-T3-3 — admin rejection increments attempts (3 -> 4)
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare v_row advocates;
+begin
+  v_row := admin_decide('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'rejected', 'Sanad unreadable');
+  if v_row.attempts <> 4 then
+    raise exception 'S2-T3-3 FAIL: attempts = % after rejection (expected 4)', v_row.attempts;
+  end if;
+  raise notice 'PASS S2-T3-3: admin rejection incremented attempts to 4';
+end $$;
+
+-- =====================================================================
+-- Sprint 2 (Task 4) — optional p_nid_number on submit_verification
+-- (migration 20261023000002). Dedicated advocate ffff with no NID.
+-- =====================================================================
+reset role;
+do $$
+declare v_adv_f uuid := 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+begin
+  insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at)
+  values (v_adv_f, 'authenticated', 'authenticated', 'adv_f@test.local', 'x', now(), '+8801711000010', now());
+  insert into profiles (id, role, phone) values (v_adv_f, 'advocate', '+8801711000010');
+  insert into advocates (profile_id, bar_council_no) values (v_adv_f, 'B-1200');
+  raise notice 'S2-T4 fixture ready (advocate ffff, no NID)';
+end $$;
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+-- S2-T4-1 — empty-string NID with no existing value stays NULL
+do $$
+declare v_row advocates;
+begin
+  v_row := submit_verification(p_bar_council_no => 'B-1200', p_nid_number => '');
+  if v_row.nid_number is not null then
+    raise exception 'S2-T4-1 FAIL: empty p_nid_number stored as %', v_row.nid_number;
+  end if;
+  raise notice 'PASS S2-T4-1: empty p_nid_number treated as null';
+end $$;
+
+-- S2-T4-2 — provided NID is stored
+do $$
+declare v_row advocates;
+begin
+  v_row := submit_verification(p_bar_council_no => 'B-1200', p_nid_number => '9876543210');
+  if v_row.nid_number is distinct from '9876543210' then
+    raise exception 'S2-T4-2 FAIL: nid_number = % (expected 9876543210)', v_row.nid_number;
+  end if;
+  raise notice 'PASS S2-T4-2: p_nid_number stored';
+end $$;
+
+-- S2-T4-3 — null NID preserves the existing value
+do $$
+declare v_row advocates;
+begin
+  v_row := submit_verification(p_bar_council_no => 'B-1200', p_nid_number => null);
+  if v_row.nid_number is distinct from '9876543210' then
+    raise exception 'S2-T4-3 FAIL: null p_nid_number changed nid_number to %', v_row.nid_number;
+  end if;
+  raise notice 'PASS S2-T4-3: null p_nid_number preserves existing value';
+end $$;
+
+-- S2-T4-4 — empty-string NID does not overwrite the existing value
+do $$
+declare v_row advocates;
+begin
+  v_row := submit_verification(p_bar_council_no => 'B-1200', p_nid_number => '');
+  if v_row.nid_number is distinct from '9876543210' then
+    raise exception 'S2-T4-4 FAIL: empty p_nid_number overwrote nid_number with %', v_row.nid_number;
+  end if;
+  raise notice 'PASS S2-T4-4: empty p_nid_number does not overwrite';
+end $$;
+
+-- =====================================================================
+-- Sprint 2 (Task 4) — SOS rate limit, 3 per client per 24 h (TRD §6.8)
+-- Client B has no SOS rows, so the window starts empty.
+-- =====================================================================
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '22222222-2222-2222-2222-222222222222', 'role', 'authenticated')::text, true);
+set local role authenticated;
+
+-- S2-T5-1 — first three SOS within 24 h are accepted
+do $$
+begin
+  for i in 1..3 loop
+    insert into sos_requests (client_id, thana, district, court, contact_phone)
+    values ('22222222-2222-2222-2222-222222222222', 'Ramna', 'Dhaka', 'Dhaka CMM Court 1', '+8801711000002');
+  end loop;
+  raise notice 'PASS S2-T5-1: three SOS within 24 h accepted';
+end $$;
+
+-- S2-T5-2 — fourth SOS within 24 h is rejected
+do $$
+begin
+  begin
+    insert into sos_requests (client_id, thana, district, court, contact_phone)
+    values ('22222222-2222-2222-2222-222222222222', 'Ramna', 'Dhaka', 'Dhaka CMM Court 1', '+8801711000002');
+    raise exception 'S2-T5-2 FAIL: fourth SOS within 24 h was accepted';
+  exception when others then
+    if sqlerrm like 'sos_rate_limit_exceeded%' then
+      raise notice 'PASS S2-T5-2: fourth SOS within 24 h blocked';
+    elsif sqlerrm like 'S2-T5-2 FAIL%' then
+      raise;
+    else
+      raise exception 'S2-T5-2 ERROR: unexpected error: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+end $$;
+
+-- S2-T5-3 — once the earlier SOS age past 24 h, a new SOS is accepted
+reset role;
+update sos_requests set created_at = now() - interval '25 hours'
+ where client_id = '22222222-2222-2222-2222-222222222222';
+select set_config('request.jwt.claims',
+  json_build_object('sub', '22222222-2222-2222-2222-222222222222', 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+begin
+  insert into sos_requests (client_id, thana, district, court, contact_phone)
+  values ('22222222-2222-2222-2222-222222222222', 'Ramna', 'Dhaka', 'Dhaka CMM Court 1', '+8801711000002');
+  raise notice 'PASS S2-T5-3: SOS accepted after the 24 h window';
+end $$;
+
+-- =====================================================================
 rollback;
 \echo '*** ALL HITL RLS TESTS PASSED ***'

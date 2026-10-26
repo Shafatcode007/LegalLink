@@ -13,6 +13,7 @@ venv/
 .dart_tool/
 .packages
 build/
+coverage/
 .pub-cache/
 *.iml
 
@@ -24,9 +25,10 @@ db/.temp/
 node_modules
 node_modules/
 .wrangler/
+.dev.vars
 
 # AI Models (too large for Git)
-models/
+/models/
 *.gguf
 *.bin
 *.onnx

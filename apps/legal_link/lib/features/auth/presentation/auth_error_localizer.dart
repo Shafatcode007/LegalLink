@@ -1,9 +1,6 @@
 import '../../../l10n/app_localizations.dart';
 
-String localizedAuthError(
-  AppLocalizations l10n,
-  String? error,
-) {
+String localizedAuthError(AppLocalizations l10n, String? error) {
   switch (error) {
     case 'Phone number not found':
       return l10n.phoneNotFound;

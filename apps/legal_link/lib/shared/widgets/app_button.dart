@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
+import '../tokens/app_typography.dart';
 import 'min_tap_target.dart';
 
 enum ButtonVariant { primary, secondary, ribbon, sos }
@@ -174,7 +175,7 @@ class _AppButtonState extends State<AppButton> {
             Flexible(
               child: Text(
                 widget.label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                style: AppTypography.buttonText(
                   color: textColor,
                   fontSize: widget.variant == ButtonVariant.sos ? 17 : 15,
                 ),

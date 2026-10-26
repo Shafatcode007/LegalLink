@@ -74,10 +74,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     // to /role after successful OTP verification.
   }
 
-  Widget _buildOtpDigit({
-    required String digit,
-    required bool active,
-  }) {
+  Widget _buildOtpDigit({required String digit, required bool active}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       width: 48,
@@ -115,13 +112,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           final digit = index < value.length ? value[index] : '';
 
           final active =
-              index == value.length ||
-              (value.length == 6 && index == 5);
+              index == value.length || (value.length == 6 && index == 5);
 
-          return _buildOtpDigit(
-            digit: digit,
-            active: active,
-          );
+          return _buildOtpDigit(digit: digit, active: active);
         }),
       ),
     );
@@ -137,14 +130,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 32,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 440,
-              ),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -172,12 +160,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       child: Text(
                         l10n.appName,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
 
@@ -185,50 +169,34 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
                     Text(
                       l10n.otpTitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                            fontSize: 28,
-                            height: 1.3,
-                          ),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontSize: 28, height: 1.3),
                     ),
 
                     const SizedBox(height: 10),
 
                     Text(
                       l10n.otpSubtitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            color: AppColors.oxfordMuted,
-                          ),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(color: AppColors.oxfordMuted),
                     ),
 
                     const SizedBox(height: 6),
 
                     Text(
                       phone,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
-                            color: AppColors.brass,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.brass,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
 
                     const SizedBox(height: 32),
 
                     Text(
                       l10n.otpLabel,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
 
                     const SizedBox(height: 12),
@@ -250,8 +218,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                 _errorMessage = null;
                               });
 
-                              if (value.length == 6 &&
-                                  !auth.loading) {
+                              if (value.length == 6 && !auth.loading) {
                                 _verifyOtp();
                               }
                             },
@@ -267,9 +234,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       Text(
                         _errorMessage!,
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error,
+                          color: Theme.of(context).colorScheme.error,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -283,13 +248,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.stone,
-                        ),
+                        border: Border.all(color: AppColors.stone),
                       ),
                       child: Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
                             Icons.info_outline_rounded,
@@ -300,12 +262,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                           Expanded(
                             child: Text(
                               l10n.otpHelp,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color:
-                                        AppColors.oxfordMuted,
+                                    color: AppColors.oxfordMuted,
                                     height: 1.5,
                                   ),
                             ),
@@ -318,11 +277,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
                     AppButton.primary(
                       label: l10n.verifyOtp,
-                      icon: const Icon(
-                        Icons.verified_outlined,
-                      ),
-                      onPressed:
-                          auth.loading ? null : _verifyOtp,
+                      icon: const Icon(Icons.verified_outlined),
+                      onPressed: auth.loading ? null : _verifyOtp,
                       isLoading: auth.loading,
                       isFullWidth: true,
                     ),

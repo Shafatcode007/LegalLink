@@ -1,0 +1,17 @@
+name: arch-lint
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/legal_link/lib/**', 'scripts/arch_lint.sh', '.github/workflows/arch-lint.yml']
+  pull_request:
+    branches: [main]
+    paths: ['apps/legal_link/lib/**', 'scripts/arch_lint.sh', '.github/workflows/arch-lint.yml']
+
+jobs:
+  arch-lint:
+    name: Flutter layer rules (TRD §8.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/arch_lint.sh apps/legal_link/lib
