@@ -70,6 +70,54 @@ revoke execute on function submit_document(uuid, text, text) from public;
 grant execute on function submit_document(uuid, text, text) to authenticated;
 
 -- =====================================================================
+-- 4) RPC accept_sos — atomic row-locked SOS acceptance (S2-R2 / S2-R3).
+--    Security: SECURITY DEFINER, search_path = public, revoke public.
+--    Row lock: UPDATE ... WHERE status = 'open' returns at most one row.
+--    Race invariant: returns NULL when zero rows matched (sos_already_taken).
+-- =====================================================================
+create or replace function accept_sos(p_sos_id uuid)
+returns sos_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sos sos_requests;
+begin
+  if not is_verified_advocate() then
+    raise exception 'not_verified_advocate';
+  end if;
+
+  update sos_requests
+     set status = 'accepted',
+         advocate_id = auth.uid(),
+         accepted_at = now()
+   where id = p_sos_id
+     and status = 'open'
+  returning * into v_sos;
+
+  if v_sos.id is null then
+    return null;
+  end if;
+
+  insert into audit_logs(actor_id, actor_role, action, entity, entity_id, metadata)
+  values (
+    auth.uid(),
+    'advocate',
+    'sos.accept',
+    'sos_requests',
+    p_sos_id,
+    jsonb_build_object('advocate_id', auth.uid(), 'accepted_at', now())
+  );
+
+  perform create_case_from_sos(p_sos_id);
+  return v_sos;
+end $$;
+
+revoke execute on function accept_sos(uuid) from public;
+grant execute on function accept_sos(uuid) to authenticated;
+
+-- =====================================================================
 -- 3) Storage RLS policies on storage.objects (S2-R6 / Iron Law #5).
 --    INSERT policies use WITH CHECK (never USING alone). SELECT uses USING.
 --    No UPDATE or DELETE policies: storage objects are immutable append-only.
