@@ -11,6 +11,7 @@ Future<void> main() async {
 
   await Hive.initFlutter();
   await Hive.openBox<dynamic>('auth_box');
+  await AppDependencyScope.initializeBackend();
 
   runApp(const AppDependencyScope(child: AinSohayApp()));
 }
