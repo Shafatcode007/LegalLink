@@ -157,9 +157,19 @@ begin;
   set role authenticated;
   select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);
 
-  do $$
+do $$
   begin
-    perform submit_verification('BC-10004');
+    perform submit_verification(
+      'BC-10004'::text,
+      '{}'::text[],
+      '{}'::text[],
+      '{}'::text[],
+      '{bn}'::text[],
+      null::numeric,
+      null::numeric,
+      null::text,
+      null::text
+    );
     raise exception 'D-15 FAILED: submit_verification did not raise re_apply_cap_exceeded';
   exception when others then
     if sqlerrm not like '%re_apply_cap_exceeded%' then
@@ -208,7 +218,7 @@ begin;
   do $$
   declare v_result sos_requests;
   begin
-    select accept_sos('d3333333-3333-3333-3333-333333333302') into v_result;
+    v_result := accept_sos('d3333333-3333-3333-3333-333333333302');
     if v_result is null or v_result.status <> 'accepted' then
       raise exception 'D-16 FAILED: Advocate A did not win the SOS accept';
     end if;
@@ -220,7 +230,7 @@ begin;
   do $$
   declare v_result sos_requests;
   begin
-    select accept_sos('d3333333-3333-3333-3333-333333333302') into v_result;
+    v_result := accept_sos('d3333333-3333-3333-3333-333333333302');
     if v_result is not null then
       raise exception 'D-16 FAILED: Advocate B should have lost the race (expected NULL)';
     end if;
