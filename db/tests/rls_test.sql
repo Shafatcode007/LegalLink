@@ -1,3 +1,10 @@
+
+
+-- ---------------------------------------------------------------------
+-- RLS Test Suite (HITL Security & Sprint 2 Invariants)
+-- Assertions D-1 through D-17
+-- ---------------------------------------------------------------------
+
 -- ---------------------------------------------------------------------
 -- D-11: Advocate A cannot UPDATE invoices where advocate_id = advocate B
 -- ---------------------------------------------------------------------
@@ -77,7 +84,6 @@ rollback;
 -- ---------------------------------------------------------------------
 begin;
   reset role;
-  -- Ensure client user and profile exist first
   insert into auth.users (id, aud, role, email, encrypted_password, phone)
   values ('c0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'client-a@test.local', 'x', '+8801700000901')
   on conflict (id) do nothing;
@@ -85,7 +91,6 @@ begin;
   values ('c0000000-0000-0000-0000-000000000001', 'client', '+8801700000901', 'bn')
   on conflict (id) do nothing;
 
-  -- Insert audit row using the valid profile ID (actor_id points to existing profile)
   insert into audit_logs (id, actor_id, action, entity, metadata)
   values (999999999901, 'c0000000-0000-0000-0000-000000000001', 'test.action', 'audit_logs', '{}'::jsonb)
   on conflict (id) do nothing;
@@ -101,6 +106,7 @@ begin;
     end if;
   end $$;
 rollback;
+
 -- ---------------------------------------------------------------------
 -- D-14: Proper exception raising when unverified advocate attempts privileged operations
 -- ---------------------------------------------------------------------
@@ -157,7 +163,7 @@ begin;
   set role authenticated;
   select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);
 
-do $$
+  do $$
   begin
     perform submit_verification(
       'BC-10004'::text,
