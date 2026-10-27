@@ -68,3 +68,49 @@ end $$;
 
 revoke execute on function submit_document(uuid, text, text) from public;
 grant execute on function submit_document(uuid, text, text) to authenticated;
+
+-- =====================================================================
+-- 3) Storage RLS policies on storage.objects (S2-R6 / Iron Law #5).
+--    INSERT policies use WITH CHECK (never USING alone). SELECT uses USING.
+--    No UPDATE or DELETE policies: storage objects are immutable append-only.
+-- =====================================================================
+
+alter table storage.objects enable row level security;
+
+drop policy if exists documents_insert_policy on storage.objects;
+create policy documents_insert_policy on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'documents'
+    and has_case_access((storage.foldername(name))[1]::uuid)
+  );
+
+drop policy if exists documents_select_policy on storage.objects;
+create policy documents_select_policy on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'documents'
+    and has_case_access((storage.foldername(name))[1]::uuid)
+  );
+
+drop policy if exists sanad_insert_policy on storage.objects;
+create policy sanad_insert_policy on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'sanad'
+    and (storage.foldername(name))[1]::uuid = auth.uid()
+  );
+
+drop policy if exists sanad_select_policy on storage.objects;
+create policy sanad_select_policy on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'sanad'
+    and (
+      (storage.foldername(name))[1]::uuid = auth.uid()
+      or exists (
+        select 1 from profiles
+        where profiles.id = auth.uid() and profiles.role = 'admin'
+      )
+    )
+  );
