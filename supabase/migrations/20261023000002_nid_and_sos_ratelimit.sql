@@ -21,7 +21,10 @@
 -- Drop previous signature to avoid overload
 DROP FUNCTION IF EXISTS submit_verification(text, text[], text[], text[], text[], numeric, numeric, text);
 
--- Recreate submit_verification with p_nid_number (optional, default null)
+-- Recreate submit_verification per SHAFAT_tasks.md S1-4 contract:
+--   submit_verification(p_profile_id uuid, p_bar_council_no text, p_sanad_url text, p_nid_url text)
+-- Extra fields (courts, districts, specializations, languages, fee_min_bdt, fee_max_bdt, pin, nid_number)
+-- are forward-compatible additions beyond the base contract.
 CREATE OR REPLACE FUNCTION submit_verification(
   p_profile_id uuid,
   p_bar_council_no text,
@@ -32,7 +35,9 @@ CREATE OR REPLACE FUNCTION submit_verification(
   p_fee_min_bdt numeric DEFAULT null,
   p_fee_max_bdt numeric DEFAULT null,
   p_pin text DEFAULT null,
-  p_nid_number text DEFAULT null
+  p_nid_number text DEFAULT null,
+  p_sanad_url text DEFAULT null,
+  p_nid_url text DEFAULT null
 )
 RETURNS advocates
 LANGUAGE plpgsql
@@ -81,7 +86,7 @@ BEGIN
   INSERT INTO advocates (
     profile_id, bar_council_no, courts, districts, specializations,
     languages, fee_min_bdt, fee_max_bdt,
-    verification, rejection_reason, attempts, pin_hash, updated_at, nid_number
+    verification, rejection_reason, attempts, pin_hash, updated_at, nid_number, sanad_url, nid_url
   )
   VALUES (
     auth.uid(),
@@ -92,7 +97,9 @@ BEGIN
     COALESCE((SELECT attempts FROM advocates WHERE profile_id = auth.uid()), 0),
     CASE WHEN p_pin IS NOT NULL THEN crypt(p_pin, gen_salt('bf', 10)) END,
     NOW(),
-    COALESCE(NULLIF(TRIM(p_nid_number), ''), (SELECT nid_number FROM advocates WHERE profile_id = auth.uid()))
+    COALESCE(NULLIF(TRIM(p_nid_number), ''), (SELECT nid_number FROM advocates WHERE profile_id = auth.uid())),
+    COALESCE(NULLIF(TRIM(p_sanad_url), ''), (SELECT sanad_url FROM advocates WHERE profile_id = auth.uid())),
+    COALESCE(NULLIF(TRIM(p_nid_url), ''), (SELECT nid_url FROM advocates WHERE profile_id = auth.uid()))
   )
   ON CONFLICT (profile_id) DO UPDATE SET
     bar_council_no = EXCLUDED.bar_council_no,
@@ -106,7 +113,9 @@ BEGIN
     rejection_reason = NULL,
     pin_hash = COALESCE(EXCLUDED.pin_hash, advocates.pin_hash),
     updated_at = NOW(),
-    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number)
+    nid_number = COALESCE(NULLIF(TRIM(EXCLUDED.nid_number), ''), advocates.nid_number),
+    sanad_url = COALESCE(NULLIF(TRIM(EXCLUDED.sanad_url), ''), advocates.sanad_url),
+    nid_url = COALESCE(NULLIF(TRIM(EXCLUDED.nid_url), ''), advocates.nid_url)
   RETURNING * INTO v_row;
 
   INSERT INTO audit_logs (actor_id, actor_role, action, entity, entity_id, metadata)
@@ -116,15 +125,20 @@ BEGIN
     'advocate.submit_verification',
     'advocates',
     v_row.profile_id,
-    jsonb_build_object('bar_council_no', TRIM(p_bar_council_no), 'nid_number', COALESCE(NULLIF(TRIM(p_nid_number), ''), v_row.nid_number))
+    jsonb_build_object(
+      'bar_council_no', TRIM(p_bar_council_no),
+      'nid_number', COALESCE(NULLIF(TRIM(p_nid_number), ''), v_row.nid_number),
+      'sanad_url', COALESCE(NULLIF(TRIM(p_sanad_url), ''), v_row.sanad_url),
+      'nid_url', COALESCE(NULLIF(TRIM(p_nid_url), ''), v_row.nid_url)
+    )
   );
 
   RETURN v_row;
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) FROM public;
-GRANT EXECUTE ON FUNCTION submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) TO authenticated;
+REVOKE EXECUTE ON FUNCTION submit_verification(uuid, text, text[], text[], text[], text[], numeric, numeric, text, text, text, text) FROM public;
+GRANT EXECUTE ON FUNCTION submit_verification(uuid, text, text[], text[], text[], text[], numeric, numeric, text, text, text, text) TO authenticated;
 
 -- =====================================================================
 -- ENFORCE SOS RATE LIMIT (3 per 24 hours per client) TRIGGER
