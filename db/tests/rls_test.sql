@@ -139,5 +139,132 @@ begin;
   end $$;
 rollback;
 
+-- ---------------------------------------------------------------------
+-- D-15: Re-apply cap exceeded (advocates.attempts >= 3)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('a0000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'adv-cap@test.local', 'x', '+8801700000904')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('a0000000-0000-0000-0000-000000000004', 'advocate', '+8801700000904', 'bn')
+  on conflict (id) do nothing;
+  insert into advocates (profile_id, bar_council_no, verification, attempts, districts)
+  values ('a0000000-0000-0000-0000-000000000004', 'BC-10004', 'rejected', 3, array['Dhaka'])
+  on conflict (profile_id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);
+
+  do $$
+  begin
+    perform submit_verification('BC-10004'::text, '{}'::text[], '{}'::text[], '{}'::text[], '{bn}'::text[], null::numeric, null::numeric, null::text, null::text);
+    raise exception 'D-15 FAILED: submit_verification did not raise re_apply_cap_exceeded';
+  exception when others then
+    if sqlerrm not like '%re_apply_cap_exceeded%' and sqlerrm not like '%max_verification_attempts_reached%' then
+      raise exception 'D-15 FAILED: wrong exception message: %', sqlerrm;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-16: Atomic SOS accept & concurrency race invariant (sos_already_taken)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('a0000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'adv-race-a@test.local', 'x', '+8801700000905')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('a0000000-0000-0000-0000-000000000006', 'authenticated', 'authenticated', 'adv-race-b@test.local', 'x', '+8801700000906')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'client-race@test.local', 'x', '+8801700000907')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('a0000000-0000-0000-0000-000000000005', 'advocate', '+8801700000905', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('a0000000-0000-0000-0000-000000000006', 'advocate', '+8801700000906', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000003', 'client', '+8801700000907', 'bn')
+  on conflict (id) do nothing;
+  insert into advocates (profile_id, bar_council_no, verification, districts)
+  values ('a0000000-0000-0000-0000-000000000005', 'BC-10005', 'verified', array['Dhaka'])
+  on conflict (profile_id) do nothing;
+  insert into advocates (profile_id, bar_council_no, verification, districts)
+  values ('a0000000-0000-0000-0000-000000000006', 'BC-10006', 'verified', array['Dhaka'])
+  on conflict (profile_id) do nothing;
+  insert into sos_requests (id, client_id, thana, district, contact_phone, status)
+  values ('d3333333-3333-3333-3333-333333333302', 'c0000000-0000-0000-0000-000000000003', 'Thana', 'Dhaka', '+8801700000907', 'open')
+  on conflict (id) do nothing;
+
+  -- Advocate A wins the race
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000005', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_result sos_requests;
+  begin
+    v_result := accept_sos('d3333333-3333-3333-3333-333333333302');
+    if v_result is null or v_result.status <> 'accepted' then
+      raise exception 'D-16 FAILED: Advocate A did not win the SOS accept';
+    end if;
+  end $$;
+
+  -- Advocate B loses the race (status no longer 'open')
+  select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000006', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_result sos_requests;
+  begin
+    v_result := accept_sos('d3333333-3333-3333-3333-333333333302');
+    if v_result is not null then
+      raise exception 'D-16 FAILED: Advocate B should have lost the race (expected NULL)';
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-17: Document storage access isolation (case-party guard)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000007', 'authenticated', 'authenticated', 'client-case-a@test.local', 'x', '+8801700000908')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000008', 'authenticated', 'authenticated', 'client-case-b@test.local', 'x', '+8801700000909')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000007', 'client', '+8801700000908', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000008', 'client', '+8801700000909', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c3333333-3333-3333-3333-333333333303', 'c0000000-0000-0000-0000-000000000007', null, 'criminal', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000008', 'role', 'authenticated')::text, true);
+
+  do $$
+  begin
+    perform submit_document(
+      'c3333333-3333-3333-3333-333333333303',
+      'nid',
+      'documents/c3333333-3333-3333-3333-333333333303/doc-id/file.pdf'
+    );
+    raise exception 'D-17 FAILED: submit_document did not raise unauthorized_case_access';
+  exception when others then
+    if sqlerrm not like '%unauthorized_case_access%' then
+      raise exception 'D-17 FAILED: wrong exception message: %', sqlerrm;
+    end if;
+  end $$;
+rollback;
+
 reset role;
 select '*** ALL HITL RLS TESTS PASSED ***' as result;
