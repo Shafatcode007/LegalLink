@@ -1,0 +1,26 @@
+# Environment & Command Execution Invariants
+
+## 1. Host Environment Architecture
+- The primary codebase is on Windows at `D:\LegalLink` (`/mnt/d/LegalLink` in WSL).
+- Docker daemon, Supabase CLI, and PostgreSQL containers run exclusively inside **WSL2 (Ubuntu)**.
+- The native Windows host does not have `docker` or `psql` in its PATH.
+
+## 2. Automated Command Execution Rules
+- Never invoke raw `docker`, `psql`, or `supabase` commands directly in PowerShell or CMD.
+- To run tests, invoke the workspace test runner:
+  ```cmd
+  .\run_tests.bat
+  ```
+  or
+  ```bash
+  wsl bash -c "cd /mnt/d/LegalLink && ./run_tests.sh"
+  ```
+- For arbitrary container operations, always wrap them in WSL:
+  ```bash
+  wsl bash -c 'cd /mnt/d/LegalLink && docker exec -i $(docker ps -q -f name=_db_) psql -U postgres -v ON_ERROR_STOP=1 < <file.sql>'
+  ```
+- Always use single quotes `'...'` when calling `wsl bash -c '...'` from Windows shells to avoid PowerShell variable and subexpression expansion errors.
+
+## 3. Drift-Guard Test Policy
+- Every database modification or migration must pass the RLS test suite twice consecutively (`./run_tests.bat`) to verify idempotency.
+- Look for the expected terminal output: `*** ALL HITL RLS TESTS PASSED ***`.
