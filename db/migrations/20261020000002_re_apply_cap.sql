@@ -3,8 +3,10 @@
 --
 -- Enforces the re-apply cap: once `advocates.attempts >= 3` (i.e. 3 admin
 -- rejections), `submit_verification` raises `re_apply_cap_exceeded` until an
--- admin resets `attempts` (admin-only, audit logged). Each `admin_decide`
--- rejection increments `attempts`.
+-- admin resets `attempts` (admin-only, audit logged). Each `submit_verification`
+-- call increments `attempts`; each `admin_decide` rejection increments `attempts`.
+-- An explicit pre-check in `admin_decide` prevents any decision when the cap is
+-- already reached.
 --
 -- Mirrors byte-identically to supabase/migrations/ (Iron Law #7).
 
@@ -75,7 +77,7 @@ begin
     p_courts, p_districts, p_specializations,
     p_languages, p_fee_min_bdt, p_fee_max_bdt,
     'pending', null,
-    coalesce((select attempts from advocates where profile_id = auth.uid()), 0),
+    coalesce((select attempts from advocates where profile_id = auth.uid()), 0) + 1,
     case when p_pin is not null then extensions.crypt(p_pin, extensions.gen_salt('bf', 10)) end,
     now(),
     coalesce(nullif(trim(p_nid_number), ''), (select nid_number from advocates where profile_id = auth.uid()))
@@ -111,12 +113,13 @@ end $$;
 revoke execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) from public;
 grant execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) to authenticated;
 
--- 3. admin_decide: re-define with text decision type.
+-- 3. admin_decide: re-define with verification_state decision type.
 --    On reject: verification='rejected', rejection_reason, attempts = attempts + 1.
 --    On verify: verification='verified'.
+drop function if exists admin_decide(uuid, text, text);
 create or replace function admin_decide(
   p_advocate_id uuid,
-  p_decision text,
+  p_decision verification_state,
   p_rejection_reason text default null
 )
 returns advocates
@@ -140,8 +143,19 @@ begin
     raise exception 'rejection_reason_required';
   end if;
 
+  -- Pre-check: re-apply cap enforcement (Task S2-R4)
+  -- If the advocate has already reached the 3-attempt ceiling, an admin
+  -- decision must not override or reset the cap through this RPC.
+  if exists (
+    select 1 from advocates
+    where profile_id = p_advocate_id
+      and attempts >= 3
+  ) then
+    raise exception 're_apply_cap_exceeded';
+  end if;
+
   update advocates
-     set verification = p_decision::verification_state,
+     set verification = p_decision,
          verified_at = case when p_decision = 'verified' then now() else null end,
          reverify_due_at = case when p_decision = 'verified'
                                 then now() + interval '365 days' else null end,
@@ -167,5 +181,5 @@ begin
   return v_row;
 end $$;
 
-revoke execute on function admin_decide(uuid, text, text) from public;
-grant execute on function admin_decide(uuid, text, text) to authenticated;
+revoke execute on function admin_decide(uuid, verification_state, text) from public;
+grant execute on function admin_decide(uuid, verification_state, text) to authenticated;

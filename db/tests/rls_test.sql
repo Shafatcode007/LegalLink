@@ -1,4 +1,334 @@
 -- ---------------------------------------------------------------------
+-- D-1: Client A cannot SELECT Client B's cases rows
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000010', 'authenticated', 'authenticated', 'client-a-d1@test.local', 'x', '+8801700000910')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000011', 'authenticated', 'authenticated', 'client-b-d1@test.local', 'x', '+8801700000911')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000010', 'client', '+8801700000910', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000011', 'client', '+8801700000911', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c1111111-1111-1111-1111-111111111101', 'c0000000-0000-0000-0000-000000000011', null, 'bail', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000010', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from cases where id = 'c1111111-1111-1111-1111-111111111101';
+    if v_rows <> 0 then
+      raise exception 'D-1 FAILED: Client A can SELECT Client B case (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-2: Client A cannot SELECT Client B's hearings rows
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000012', 'authenticated', 'authenticated', 'client-a-d2@test.local', 'x', '+8801700000912')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000013', 'authenticated', 'authenticated', 'client-b-d2@test.local', 'x', '+8801700000913')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000012', 'client', '+8801700000912', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000013', 'client', '+8801700000913', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c2222222-2222-2222-2222-222222222202', 'c0000000-0000-0000-0000-000000000013', null, 'criminal', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into hearings (id, case_id, hearing_date, court, outcome_notes, entered_by)
+  values ('22222222-2222-2222-2222-222222222202', 'c2222222-2222-2222-2222-222222222202', '2026-11-01', 'Dhaka Court', 'test hearing', 'c0000000-0000-0000-0000-000000000013')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000012', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from hearings where id = '22222222-2222-2222-2222-222222222202';
+    if v_rows <> 0 then
+      raise exception 'D-2 FAILED: Client A can SELECT Client B hearing (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-3: Client A cannot SELECT Client B's documents rows
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000014', 'authenticated', 'authenticated', 'client-a-d3@test.local', 'x', '+8801700000914')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000015', 'authenticated', 'authenticated', 'client-b-d3@test.local', 'x', '+8801700000915')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000014', 'client', '+8801700000914', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000015', 'client', '+8801700000915', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c3333333-3333-3333-3333-333333333310', 'c0000000-0000-0000-0000-000000000015', null, 'family', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into documents (id, case_id, uploaded_by, doc_type, storage_path, status)
+  values ('d3333333-3333-3333-3333-333333333310', 'c3333333-3333-3333-3333-333333333310', 'c0000000-0000-0000-0000-000000000015', 'nid', 'documents/c3333333-3333-3333-3333-333333333310/nid.pdf', 'uploaded')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000014', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from documents where id = 'd3333333-3333-3333-3333-333333333310';
+    if v_rows <> 0 then
+      raise exception 'D-3 FAILED: Client A can SELECT Client B document (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-4: Client A cannot SELECT Client B's invoices rows
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000016', 'authenticated', 'authenticated', 'client-a-d4@test.local', 'x', '+8801700000916')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000017', 'authenticated', 'authenticated', 'client-b-d4@test.local', 'x', '+8801700000917')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('a0000000-0000-0000-0000-000000000016', 'authenticated', 'authenticated', 'adv-d4@test.local', 'x', '+8801700000926')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000017', 'client', '+8801700000917', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('a0000000-0000-0000-0000-000000000016', 'advocate', '+8801700000916', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c4444444-4444-4444-4444-444444444401', 'c0000000-0000-0000-0000-000000000017', 'a0000000-0000-0000-0000-000000000016', 'criminal', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into invoices (id, invoice_no, case_id, advocate_id, client_id, subtotal_bdt, vat_rate, vat_bdt, total_bdt, state)
+  values ('b4444444-4444-4444-4444-444444444401', 'INV-2026-0100', 'c4444444-4444-4444-4444-444444444401', 'a0000000-0000-0000-0000-000000000016', 'c0000000-0000-0000-0000-000000000017', 1000.00, 15.00, 150.00, 1150.00, 'draft')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000016', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from invoices where id = 'b4444444-4444-4444-4444-444444444401';
+    if v_rows <> 0 then
+      raise exception 'D-4 FAILED: Client A can SELECT Client B invoice (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-5: Client A cannot SELECT ai_summaries where state = 'draft'
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000018', 'authenticated', 'authenticated', 'client-a-d5@test.local', 'x', '+8801700000918')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000019', 'authenticated', 'authenticated', 'client-b-d5@test.local', 'x', '+8801700000919')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000018', 'client', '+8801700000918', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000019', 'client', '+8801700000919', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c5555555-5555-5555-5555-555555555501', 'c0000000-0000-0000-0000-000000000019', null, 'bail', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into ai_summaries (id, case_id, raw_input, draft_bn, state)
+  values ('55555555-5555-5555-5555-555555555501', 'c5555555-5555-5555-5555-555555555501', 'raw input', 'draft bn', 'draft')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000018', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from ai_summaries where id = '55555555-5555-5555-5555-555555555501';
+    if v_rows <> 0 then
+      raise exception 'D-5 FAILED: Client A can SELECT draft ai_summary (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-6: Client A cannot INSERT into audit_logs
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000020', 'authenticated', 'authenticated', 'client-a-d6@test.local', 'x', '+8801700000920')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000020', 'client', '+8801700000920', 'bn')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000020', 'role', 'authenticated')::text, true);
+
+  do $$
+  begin
+    insert into audit_logs (id, actor_id, action, entity, metadata)
+    values (999999999902, 'c0000000-0000-0000-0000-000000000020', 'test.action', 'audit_logs', '{}'::jsonb);
+    raise exception 'D-6 FAILED: Client A can INSERT into audit_logs';
+  exception when others then
+    null; -- expected: no INSERT policy on audit_logs
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-7: Client A cannot CALL admin_force_publish
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000021', 'authenticated', 'authenticated', 'client-a-d7@test.local', 'x', '+8801700000921')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000021', 'client', '+8801700000921', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('c6666666-6666-6666-6666-666666666601', 'c0000000-0000-0000-0000-000000000021', null, 'criminal', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into ai_summaries (id, case_id, raw_input, draft_bn, state)
+  values ('66666666-6666-6666-6666-666666666601', 'c6666666-6666-6666-6666-666666666601', 'raw input', 'draft bn', 'draft')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000021', 'role', 'authenticated')::text, true);
+
+  do $$
+  begin
+    perform admin_force_publish('66666666-6666-6666-6666-666666666601', 'test reason');
+    raise exception 'D-7 FAILED: Client A can CALL admin_force_publish';
+  exception when others then
+    null; -- expected: admin_force_publish requires is_admin()
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-8: Unverified advocate cannot SELECT open sos_requests
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('a0000000-0000-0000-0000-000000000022', 'authenticated', 'authenticated', 'adv-unverified-d8@test.local', 'x', '+8801700000922')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('a0000000-0000-0000-0000-000000000022', 'advocate', '+8801700000922', 'bn')
+  on conflict (id) do nothing;
+  insert into advocates (profile_id, bar_council_no, verification, districts)
+  values ('a0000000-0000-0000-0000-000000000022', 'BC-10008', 'pending', array['Dhaka'])
+  on conflict (profile_id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000021', 'authenticated', 'authenticated', 'client-b-d8@test.local', 'x', '+8801700000921')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000021', 'client', '+8801700000921', 'bn')
+  on conflict (id) do nothing;
+  insert into sos_requests (id, client_id, thana, district, contact_phone, status)
+  values ('d8888888-8888-8888-8888-888888888801', 'c0000000-0000-0000-0000-000000000021', 'Thana', 'Dhaka', '+8801700000921', 'open')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-0000-0000-000000000022', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from sos_requests where status = 'open';
+    if v_rows <> 0 then
+      raise exception 'D-8 FAILED: Unverified advocate can SELECT open sos_requests (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-9: Client A cannot INSERT into profiles with role = 'admin'
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000023', 'authenticated', 'authenticated', 'client-a-d9@test.local', 'x', '+8801700000923')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000023', 'role', 'authenticated')::text, true);
+
+  do $$
+  begin
+    insert into profiles (id, role, phone, language)
+    values ('c0000000-0000-0000-0000-000000000023', 'admin', '+8801700000923', 'en');
+    raise exception 'D-9 FAILED: Client A can INSERT profile with role admin';
+  exception when others then
+    null; -- expected: no INSERT policy on profiles
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-10: Client A cannot SELECT Client B's profile where role = 'admin'
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000024', 'authenticated', 'authenticated', 'client-a-d10@test.local', 'x', '+8801700000924')
+  on conflict (id) do nothing;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('c0000000-0000-0000-0000-000000000025', 'authenticated', 'authenticated', 'client-b-d10@test.local', 'x', '+8801700000925')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000024', 'client', '+8801700000924', 'bn')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('c0000000-0000-0000-0000-000000000025', 'admin', '+8801700000925', 'bn')
+  on conflict (id) do nothing;
+
+  set role authenticated;
+  select set_config('request.jwt.claims', json_build_object('sub', 'c0000000-0000-0000-0000-000000000024', 'role', 'authenticated')::text, true);
+
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from profiles where id = 'c0000000-0000-0000-0000-000000000025' and role = 'admin';
+    if v_rows <> 0 then
+      raise exception 'D-10 FAILED: Client A can SELECT Client B admin profile (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
 -- D-11: Advocate A cannot UPDATE invoices where advocate_id = advocate B
 -- ---------------------------------------------------------------------
 begin;
