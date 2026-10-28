@@ -111,8 +111,7 @@ end $$;
 revoke execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) from public;
 grant execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) to authenticated;
 
--- admin_decide is unchanged except that it already increments attempts on reject
--- (the 'attempts = attempts + 1' assignment, source: 20130130120002_rpc_verification.sql)
+-- admin_decide: re-apply cap pre-check (Task S2-R4) plus reject increments attempts.
 -- Remove any legacy text-typed overload left by earlier migrations so only the
 -- canonical verification_state signature remains (Iron Law #1).
 drop function if exists admin_decide(uuid, text, text);
@@ -129,6 +128,15 @@ as $$
 declare
   v_row advocates;
 begin
+  -- Pre-check: re-apply cap enforcement (Task S2-R4)
+  if exists (
+    select 1 from advocates
+    where profile_id = p_advocate_id
+      and attempts >= 3
+  ) then
+    raise exception 're_apply_cap_exceeded';
+  end if;
+
   if not (select is_admin()) then
     raise exception 'forbidden: admin privileges required';
   end if;
