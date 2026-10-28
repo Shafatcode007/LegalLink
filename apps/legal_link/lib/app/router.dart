@@ -1,80 +1,81 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/domain/user_role.dart';
 import '../features/auth/presentation/providers/auth_controller.dart';
 import '../features/auth/presentation/screens/otp_screen.dart';
 import '../features/auth/presentation/screens/phone_screen.dart';
 import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/onboarding/presentation/screens/minimal_profile_screen.dart';
+import '../features/onboarding/presentation/screens/advocate_registration_screen.dart';
+import '../features/sos/presentation/screens/sos_screen.dart';
+import 'client_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/login',
-
-    redirect: (context, state) {
-      if (auth.initializing) {
-        return null;
-      }
-
-      final path = state.uri.path;
-
-      if (auth.isSignedIn) {
-        return path == '/home' ? null : '/home';
-      }
-
-      if (!auth.otpVerified) {
-        if (auth.phone == null) {
-          return path == '/login' ? null : '/login';
-        }
-
-        return path == '/otp' ? null : '/otp';
-      }
-
-      if (auth.role == null || !auth.roleConfirmed) {
-        return path == '/role' ? null : '/role';
-      }
-
-      if (path == '/profile') {
-        return null;
-      }
-
-      return '/profile';
-    },
-
+    redirect: (context, state) => _redirect(auth, state.uri.path),
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) {
-          return const PhoneScreen();
-        },
-      ),
-      GoRoute(
-        path: '/otp',
-        builder: (context, state) {
-          return const OtpScreen();
-        },
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const PhoneScreen()),
+      GoRoute(path: '/otp', builder: (context, state) => const OtpScreen()),
       GoRoute(
         path: '/role',
-        builder: (context, state) {
-          return const RoleSelectionScreen();
-        },
+        builder: (context, state) => const RoleSelectionScreen(),
       ),
       GoRoute(
         path: '/profile',
-        builder: (context, state) {
-          return const MinimalProfileScreen();
-        },
+        builder: (context, state) => const MinimalProfileScreen(),
       ),
       GoRoute(
-        path: '/home',
-        builder: (context, state) {
-          return const HomeScreen();
-        },
+        path: '/advocate-registration',
+        builder: (context, state) =>
+            AdvocateRegistrationScreen(userId: auth.user!.id),
+      ),
+      ShellRoute(
+        builder: (context, state, child) => auth.user?.role == UserRole.client
+            ? ClientShell(
+                phone: auth.user!.phone,
+                expanded: state.uri.path == '/sos',
+                child: child,
+              )
+            : child,
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/sos',
+            builder: (context, state) =>
+                SosScreen(contactPhone: auth.user!.phone),
+          ),
+        ],
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
+
+String? _redirect(AuthState auth, String path) {
+  if (auth.initializing) return path == '/login' ? null : '/login';
+  if (auth.isSignedIn) {
+    if (path == '/home') return null;
+    if (path == '/advocate-registration' &&
+        auth.user!.role == UserRole.advocate) {
+      return null;
+    }
+    if (path == '/sos' && auth.user!.role == UserRole.client) return null;
+    return '/home';
+  }
+  if (!auth.otpVerified) {
+    final next = auth.phone == null ? '/login' : '/otp';
+    return path == next ? null : next;
+  }
+  if (auth.role == null || !auth.roleConfirmed) {
+    return path == '/role' ? null : '/role';
+  }
+  return path == '/profile' ? null : '/profile';
+}
