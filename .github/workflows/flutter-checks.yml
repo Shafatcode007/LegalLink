@@ -1,0 +1,74 @@
+name: Flutter contributor checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['apps/legal_link/**', '.github/workflows/flutter-checks.yml']
+  push:
+    branches: [main]
+    paths: ['apps/legal_link/**', '.github/workflows/flutter-checks.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - working-directory: apps/legal_link
+        run: |
+          flutter pub get
+          flutter analyze
+          dart format --output=none --set-exit-if-changed lib test
+          dart run tool/check_role_b_rules.dart
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - working-directory: apps/legal_link
+        run: |
+          flutter pub get
+          flutter test --coverage
+          python3 tool/check_coverage.py
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [web, android]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        if: matrix.target == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - working-directory: apps/legal_link
+        run: flutter pub get
+      - working-directory: apps/legal_link
+        if: matrix.target == 'web'
+        run: flutter build web --release
+      - working-directory: apps/legal_link
+        if: matrix.target == 'android'
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2g -Dorg.gradle.workers.max=2
+        run: flutter build apk --debug

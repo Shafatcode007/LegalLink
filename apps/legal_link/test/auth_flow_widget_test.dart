@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:legal_link/app/app.dart';
+import 'package:legal_link/app/router.dart';
 import 'package:legal_link/features/auth/domain/app_user.dart';
 import 'package:legal_link/features/auth/domain/repositories/auth_repository.dart';
 import 'package:legal_link/features/auth/domain/user_role.dart';
@@ -77,6 +78,40 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  setUp(() {
+    TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
+        .accessibilityFeaturesTestValue = FakeAccessibilityFeatures(
+      disableAnimations: true,
+    );
+  });
+  tearDown(() {
+    TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+        .clearAccessibilityFeaturesTestValue();
+  });
+  testWidgets('new protected deep links wait for session restoration', (
+    tester,
+  ) async {
+    final repository = WidgetFakeAuthRepository();
+    final container = ProviderContainer(
+      overrides: [authRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final router = container.read(routerProvider);
+    router.go('/advocate-registration');
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const AinSohayApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(PhoneScreen), findsOneWidget);
+    container.read(routerProvider).go('/sos');
+    await tester.pumpAndSettle();
+    expect(find.byType(PhoneScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('client completes full auth onboarding and logout flow', (
     tester,
   ) async {

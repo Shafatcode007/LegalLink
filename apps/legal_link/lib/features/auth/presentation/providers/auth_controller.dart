@@ -80,6 +80,12 @@ class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
     _repository = ref.read(authRepositoryProvider);
+    if (_repository case final AuthSessionChanges changes) {
+      final subscription = changes.signedOut.listen((_) {
+        if (ref.mounted) state = const AuthState(initializing: false);
+      });
+      ref.onDispose(subscription.cancel);
+    }
 
     Future.microtask(_restoreSession);
 
@@ -87,19 +93,29 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _restoreSession() async {
-    final phone = await _repository.getVerifiedPhone();
-    final user = await _repository.getCurrentUser();
+    try {
+      final phone = await _repository.getVerifiedPhone();
+      final user = await _repository.getCurrentUser();
+      if (!ref.mounted) return;
 
-    state = state.copyWith(
-      phone: phone,
-      user: user,
-      role: user?.role,
-      language: user?.language ?? state.language,
-      otpVerified: phone != null,
-      roleConfirmed: user != null,
-      initializing: false,
-      clearError: true,
-    );
+      state = state.copyWith(
+        phone: phone,
+        user: user,
+        role: user?.role,
+        language: user?.language ?? state.language,
+        otpVerified: phone != null,
+        roleConfirmed: user != null,
+        initializing: false,
+        clearError: true,
+      );
+    } catch (error) {
+      if (ref.mounted) {
+        state = AuthState(
+          initializing: false,
+          error: error is AuthFailure ? error.code : 'Session restore failed',
+        );
+      }
+    }
   }
 
   Future<bool> sendOtp(String phone) async {
@@ -138,18 +154,27 @@ class AuthController extends Notifier<AuthState> {
 
     try {
       await _repository.verifyOtp(phone: phone, otp: otp);
+      final user = await _repository.getCurrentUser();
 
       state = state.copyWith(
         otpVerified: true,
-        roleConfirmed: false,
+        roleConfirmed: user != null,
+        user: user,
+        role: user?.role,
+        language: user?.language,
         loading: false,
-        clearRole: true,
-        clearUser: true,
+        clearRole: user == null,
+        clearUser: user == null,
       );
 
       return true;
-    } catch (_) {
-      state = state.copyWith(loading: false, error: 'Invalid OTP');
+    } catch (error) {
+      state = state.copyWith(
+        loading: false,
+        error: error.toString() == 'Exception: Invalid OTP'
+            ? 'Invalid OTP'
+            : error.toString(),
+      );
 
       return false;
     }
@@ -218,16 +243,7 @@ class AuthController extends Notifier<AuthState> {
         return false;
       }
 
-      state = state.copyWith(
-        user: user,
-        phone: user.phone,
-        role: user.role,
-        language: user.language,
-        otpVerified: true,
-        roleConfirmed: true,
-        loading: false,
-        clearError: true,
-      );
+      _signedIn(user);
 
       return true;
     } catch (error) {
@@ -237,9 +253,28 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<void> signOut() async {
-    await _repository.signOut();
+  void _signedIn(AppUser user) {
+    state = state.copyWith(
+      user: user,
+      phone: user.phone,
+      role: user.role,
+      language: user.language,
+      otpVerified: true,
+      roleConfirmed: true,
+      loading: false,
+      clearError: true,
+    );
+  }
 
-    state = const AuthState(initializing: false);
+  Future<void> signOut() async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await _repository.signOut();
+      if (ref.mounted) state = const AuthState(initializing: false);
+    } catch (_) {
+      if (ref.mounted) {
+        state = state.copyWith(loading: false, error: 'Sign out failed');
+      }
+    }
   }
 }
