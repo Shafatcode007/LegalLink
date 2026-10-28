@@ -3,8 +3,10 @@
 --
 -- Enforces the re-apply cap: once `advocates.attempts >= 3` (i.e. 3 admin
 -- rejections), `submit_verification` raises `re_apply_cap_exceeded` until an
--- admin resets `attempts` (admin-only, audit logged). Each `admin_decide`
--- rejection increments `attempts`.
+-- admin resets `attempts` (admin-only, audit logged). Each `submit_verification`
+-- call increments `attempts`; each `admin_decide` rejection increments `attempts`.
+-- An explicit pre-check in `admin_decide` prevents any decision when the cap is
+-- already reached.
 --
 -- Mirrors byte-identically to supabase/migrations/ (Iron Law #7).
 
@@ -75,7 +77,7 @@ begin
     p_courts, p_districts, p_specializations,
     p_languages, p_fee_min_bdt, p_fee_max_bdt,
     'pending', null,
-    coalesce((select attempts from advocates where profile_id = auth.uid()), 0),
+    coalesce((select attempts from advocates where profile_id = auth.uid()), 0) + 1,
     case when p_pin is not null then extensions.crypt(p_pin, extensions.gen_salt('bf', 10)) end,
     now(),
     coalesce(nullif(trim(p_nid_number), ''), (select nid_number from advocates where profile_id = auth.uid()))
@@ -138,6 +140,17 @@ begin
   if p_decision = 'rejected'
      and (p_rejection_reason is null or btrim(p_rejection_reason) = '') then
     raise exception 'rejection_reason_required';
+  end if;
+
+  -- Pre-check: re-apply cap enforcement (Task S2-R4)
+  -- If the advocate has already reached the 3-attempt ceiling, an admin
+  -- decision must not override or reset the cap through this RPC.
+  if exists (
+    select 1 from advocates
+    where profile_id = p_advocate_id
+      and attempts >= 3
+  ) then
+    raise exception 're_apply_cap_exceeded';
   end if;
 
   update advocates
