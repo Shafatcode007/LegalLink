@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 
+
+-- ---------------------------------------------------------------------
+-- RLS Test Suite (HITL Security & Sprint 2 Invariants)
+-- Assertions D-1 through D-17
 
 -- ---------------------------------------------------------------------
 -- RLS Test Suite (HITL Security & Sprint 2 Invariants)
