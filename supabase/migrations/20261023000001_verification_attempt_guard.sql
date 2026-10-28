@@ -111,14 +111,13 @@ end $$;
 revoke execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) from public;
 grant execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) to authenticated;
 
--- admin_decide is unchanged except that it already increments attempts on reject
--- (the 'attempts = attempts + 1' assignment, source: 20130130120002_rpc_verification.sql)
+-- admin_decide: re-apply cap pre-check (Task S2-R4) plus reject increments attempts.
 -- Remove any legacy text-typed overload left by earlier migrations so only the
 -- canonical verification_state signature remains (Iron Law #1).
 drop function if exists admin_decide(uuid, text, text);
 create or replace function admin_decide(
   p_advocate_id uuid,
-  p_decision verification_state,
+  p_decision text,
   p_rejection_reason text default null
 )
 returns advocates
@@ -128,28 +127,40 @@ set search_path = public, extensions
 as $$
 declare
   v_row advocates;
+  v_decision verification_state;
 begin
+  -- Pre-check: re-apply cap enforcement (Task S2-R4)
+  if exists (
+    select 1 from advocates
+    where profile_id = p_advocate_id
+      and attempts >= 3
+  ) then
+    raise exception 're_apply_cap_exceeded';
+  end if;
+
   if not (select is_admin()) then
     raise exception 'forbidden: admin privileges required';
   end if;
 
-  if p_decision not in ('verified', 'rejected') then
+  begin
+    v_decision := p_decision::verification_state;
+  exception when others then
     raise exception 'invalid_decision';
-  end if;
+  end;
 
-  if p_decision = 'rejected'
+  if v_decision = 'rejected'
      and (p_rejection_reason is null or btrim(p_rejection_reason) = '') then
     raise exception 'rejection_reason_required';
   end if;
 
   update advocates
-     set verification = p_decision,
-         verified_at = case when p_decision = 'verified' then now() else null end,
-         reverify_due_at = case when p_decision = 'verified'
-                              then now() + interval '365 days' else null end,
-         rejection_reason = case when p_decision = 'rejected'
+     set verification = v_decision,
+         verified_at = case when v_decision = 'verified' then now() else null end,
+         reverify_due_at = case when v_decision = 'verified'
+                                then now() + interval '365 days' else null end,
+         rejection_reason = case when v_decision = 'rejected'
                                  then trim(p_rejection_reason) else null end,
-         attempts = attempts + 1,
+         attempts = case when v_decision = 'rejected' then attempts + 1 else attempts end,
          updated_at = now()
    where profile_id = p_advocate_id
    returning * into v_row;

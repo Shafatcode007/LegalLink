@@ -23,6 +23,7 @@ DROP FUNCTION IF EXISTS submit_verification(text, text[], text[], text[], text[]
 
 -- Recreate submit_verification with p_nid_number (optional, default null)
 CREATE OR REPLACE FUNCTION submit_verification(
+  p_profile_id uuid,
   p_bar_council_no text,
   p_courts text[] DEFAULT '{}',
   p_districts text[] DEFAULT '{}',
@@ -43,6 +44,8 @@ DECLARE
   v_actor_role user_role;
 BEGIN
   -- Existing authentication/authorization gates
+  -- Note: p_profile_id is accepted for contract compatibility but auth.uid()
+  -- is authoritative for security — clients cannot impersonate another profile.
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'unauthenticated';
   END IF;
