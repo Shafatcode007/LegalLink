@@ -123,7 +123,8 @@ grant execute on function accept_sos(uuid) to authenticated;
 --    No UPDATE or DELETE policies: storage objects are immutable append-only.
 -- =====================================================================
 
-alter table storage.objects enable row level security;
+-- Note: RLS is enabled on storage.objects by default in Supabase;
+-- DDL skipped to prevent permission errors with non-owner runner roles.
 
 drop policy if exists documents_insert_policy on storage.objects;
 create policy documents_insert_policy on storage.objects
