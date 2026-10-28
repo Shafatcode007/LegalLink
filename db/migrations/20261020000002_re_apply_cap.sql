@@ -113,12 +113,13 @@ end $$;
 revoke execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) from public;
 grant execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text, text) to authenticated;
 
--- 3. admin_decide: re-define with text decision type.
+-- 3. admin_decide: re-define with verification_state decision type.
 --    On reject: verification='rejected', rejection_reason, attempts = attempts + 1.
 --    On verify: verification='verified'.
+drop function if exists admin_decide(uuid, text, text);
 create or replace function admin_decide(
   p_advocate_id uuid,
-  p_decision text,
+  p_decision verification_state,
   p_rejection_reason text default null
 )
 returns advocates
@@ -154,7 +155,7 @@ begin
   end if;
 
   update advocates
-     set verification = p_decision::verification_state,
+     set verification = p_decision,
          verified_at = case when p_decision = 'verified' then now() else null end,
          reverify_due_at = case when p_decision = 'verified'
                                 then now() + interval '365 days' else null end,
@@ -180,5 +181,5 @@ begin
   return v_row;
 end $$;
 
-revoke execute on function admin_decide(uuid, text, text) from public;
-grant execute on function admin_decide(uuid, text, text) to authenticated;
+revoke execute on function admin_decide(uuid, verification_state, text) from public;
+grant execute on function admin_decide(uuid, verification_state, text) to authenticated;

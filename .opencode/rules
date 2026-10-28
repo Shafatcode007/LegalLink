@@ -21,6 +21,20 @@
   ```
 - Always use single quotes `'...'` when calling `wsl bash -c '...'` from Windows shells to avoid PowerShell variable and subexpression expansion errors.
 
-## 3. Drift-Guard Test Policy
+## 3. Running Database Tests & Drift Guards
+- Always run tests via the Windows batch wrapper:
+  ```cmd
+  .\run_tests.bat
+  ```
+- Do NOT run raw `docker exec` or `psql` directly from Windows PowerShell.
 - Every database modification or migration must pass the RLS test suite twice consecutively (`./run_tests.bat`) to verify idempotency.
 - Look for the expected terminal output: `*** ALL HITL RLS TESTS PASSED ***`.
+
+## 4. Git Operations (Push / Fetch / Pull)
+- The SSH private key lives inside WSL.
+- Local Git commands (`git add`, `git commit`, `git status`, `git log`, `git diff`) may run directly on Windows PowerShell.
+- Delegate network push/pull/fetch to WSL to use the WSL SSH keys:
+  ```bash
+  wsl bash -c "cd /mnt/d/LegalLink && git push origin role-a/verification-attempt-limit"
+  ```
+- Prefer routing all Git network operations through WSL to avoid permission-denied errors.

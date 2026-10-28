@@ -113,6 +113,9 @@ grant execute on function submit_verification(text, text[], text[], text[], text
 
 -- admin_decide is unchanged except that it already increments attempts on reject
 -- (the 'attempts = attempts + 1' assignment, source: 20130130120002_rpc_verification.sql)
+-- Remove any legacy text-typed overload left by earlier migrations so only the
+-- canonical verification_state signature remains (Iron Law #1).
+drop function if exists admin_decide(uuid, text, text);
 create or replace function admin_decide(
   p_advocate_id uuid,
   p_decision verification_state,
