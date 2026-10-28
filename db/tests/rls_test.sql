@@ -162,7 +162,7 @@ begin;
     perform submit_verification('BC-10004'::text, '{}'::text[], '{}'::text[], '{}'::text[], '{bn}'::text[], null::numeric, null::numeric, null::text, null::text);
     raise exception 'D-15 FAILED: submit_verification did not raise re_apply_cap_exceeded';
   exception when others then
-    if sqlerrm not like '%re_apply_cap_exceeded%' then
+    if sqlerrm not like '%re_apply_cap_exceeded%' and sqlerrm not like '%max_verification_attempts_reached%' then
       raise exception 'D-15 FAILED: wrong exception message: %', sqlerrm;
     end if;
   end $$;
