@@ -17,7 +17,10 @@ import '../features/admin/presentation/notifiers/admin_verification_notifier.dar
 import '../features/auth/data/mock_auth_repository.dart';
 import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/auth/presentation/providers/auth_controller.dart';
+import '../features/sos/data/repositories/noop_sos_realtime_repository.dart';
+import '../features/sos/data/repositories/supabase_sos_realtime_repository.dart';
 import '../features/sos/data/repositories/supabase_sos_repository.dart';
+import '../features/sos/domain/repositories/sos_realtime_repository.dart';
 import '../features/sos/domain/repositories/sos_repository.dart';
 import '../features/triage/data/template_ai_service.dart';
 import '../features/triage/presentation/providers/ai_service_provider.dart';
@@ -50,6 +53,11 @@ List<Override> createDiOverrides({
       (ref) => VerificationRepositoryImpl(),
     ),
     aiServiceProvider.overrideWith((ref) => TemplateAIService()),
+    sosRealtimeRepositoryProvider.overrideWith(
+      (ref) => AppConfig.useSupabaseAuth
+          ? SupabaseSosRealtimeRepository(Supabase.instance.client)
+          : const NoopSosRealtimeRepository(),
+    ),
   ];
 }
 
