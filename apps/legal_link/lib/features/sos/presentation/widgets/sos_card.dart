@@ -70,178 +70,197 @@ class SosCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Siren Badge & Distance
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            _buildActiveHeader(),
+            const SizedBox(height: 16),
+            _buildActiveDetails(),
+            const SizedBox(height: 18),
+            _buildActiveActions(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            _buildAlertIcon(),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: AppColors.burgundy,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.crisis_alert_rounded,
-                        color: AppColors.parchment,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'জরুরি SOS',
-                              style: AppTypography.displayHeading(
-                                fontSize: 16,
-                                color: AppColors.burgundy,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.burgundy,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '● চলমান (Live)',
-                                style: AppTypography.caption(
-                                  fontSize: 10,
-                                  color: AppColors.parchment,
-                                ).copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          item.thana,
-                          style: AppTypography.banglaBody(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.oxford,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                // Distance badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.parchmentElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.stone, width: 0.8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.near_me_outlined,
-                        size: 14,
-                        color: AppColors.stoneText,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${item.distanceKm.toStringAsFixed(1)} কিমি দূরে',
-                        style: AppTypography.caption(
-                          fontSize: 12,
-                          color: AppColors.stoneText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Captured Minimal Details Container
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.parchmentElevated,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.stone, width: 0.8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'আটককৃত ব্যক্তি: ${item.personName}',
-                    style: AppTypography.banglaBody(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.oxford,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'থানা ও জেলা: ${item.thana}, ${item.district}',
-                    style: AppTypography.caption(
-                      fontSize: 13,
-                      color: AppColors.oxfordSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'অভিযোগ / ধারা: ${item.charges}',
-                    style: AppTypography.banglaBody(
-                      fontSize: 16,
-                      color: AppColors.oxfordSoft,
-                    ),
-                  ),
-                  if (item.notes != null) ...[
-                    const SizedBox(height: 4),
                     Text(
-                      'নোট: ${item.notes}',
-                      style: AppTypography.caption(
-                        fontSize: 13,
-                        color: AppColors.oxfordMuted,
+                      'জরুরি SOS',
+                      style: AppTypography.displayHeading(
+                        fontSize: 16,
+                        color: AppColors.burgundy,
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    _buildLiveBadge(),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            // Action Buttons: Accept & Decline (Instantly lock when isAccepting)
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton.secondary(
-                    label: 'পারবেন না (Decline)',
-                    isFullWidth: true,
-                    onPressed: isAccepting ? null : onDecline,
-                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AppButton.primary(
-                    label: isAccepting ? 'লক হচ্ছে...' : 'গ্রহণ করুন (Accept)',
-                    isFullWidth: true,
-                    isLoading: isAccepting,
-                    onPressed: isAccepting ? null : onAccept,
+                Text(
+                  item.thana,
+                  style: AppTypography.banglaBody(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.oxford,
                   ),
                 ),
               ],
             ),
           ],
         ),
+        _buildDistanceBadge(),
+      ],
+    );
+  }
+
+  Widget _buildAlertIcon() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: const BoxDecoration(
+        color: AppColors.burgundy,
+        shape: BoxShape.circle,
       ),
+      child: const Icon(
+        Icons.crisis_alert_rounded,
+        color: AppColors.parchment,
+        size: 20,
+      ),
+    );
+  }
+
+  Widget _buildLiveBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.burgundy,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '● চলমান (Live)',
+        style: AppTypography.caption(
+          fontSize: 10,
+          color: AppColors.parchment,
+        ).copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _buildDistanceBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.stone, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.near_me_outlined,
+            size: 14,
+            color: AppColors.stoneText,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${item.distanceKm.toStringAsFixed(1)} কিমি দূরে',
+            style: AppTypography.caption(
+              fontSize: 12,
+              color: AppColors.stoneText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveDetails() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentElevated,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.stone, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'আটককৃত ব্যক্তি: ${item.personName}',
+            style: AppTypography.banglaBody(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.oxford,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'থানা ও জেলা: ${item.thana}, ${item.district}',
+            style: AppTypography.caption(
+              fontSize: 13,
+              color: AppColors.oxfordSoft,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'অভিযোগ / ধারা: ${item.charges}',
+            style: AppTypography.banglaBody(
+              fontSize: 16,
+              color: AppColors.oxfordSoft,
+            ),
+          ),
+          if (item.notes != null) _buildNotesRow(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Text(
+          'নোট: ${item.notes}',
+          style: AppTypography.caption(
+            fontSize: 13,
+            color: AppColors.oxfordMuted,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: AppButton.secondary(
+            label: 'পারবেন না (Decline)',
+            isFullWidth: true,
+            onPressed: isAccepting ? null : onDecline,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: AppButton.primary(
+            label: isAccepting ? 'লক হচ্ছে...' : 'গ্রহণ করুন (Accept)',
+            isFullWidth: true,
+            isLoading: isAccepting,
+            onPressed: isAccepting ? null : onAccept,
+          ),
+        ),
+      ],
     );
   }
 
@@ -268,133 +287,142 @@ class SosCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row: Success Badge
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.verifiedForest,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: AppColors.parchment,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Case Created',
-                            style: AppTypography.displayHeading(
-                              fontSize: 18,
-                              color: AppColors.verifiedForest,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const VerifiedBadge(compact: true),
-                        ],
-                      ),
-                      Text(
-                        'মামলা তৈরি হয়েছে — আপনি দায়িত্ব পেয়েছেন',
-                        style: AppTypography.banglaBody(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.oxford,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            _buildCaseCreatedHeader(),
             const SizedBox(height: 16),
-
-            // Case Details Strip
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.parchmentSunken,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.stone, width: 0.8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'মামলা নম্বর: $caseId',
-                          style: AppTypography.uiBody(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.brass,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'আদালত: ${item.court}',
-                        style: AppTypography.caption(
-                          color: AppColors.oxfordMuted,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'ক্লায়েন্ট: ${item.personName} (${item.contactPhone})',
-                    style: AppTypography.banglaBody(
-                      fontSize: 16,
-                      color: AppColors.oxford,
-                    ),
-                  ),
-                  Text(
-                    'থানা: ${item.thana}',
-                    style: AppTypography.caption(
-                      fontSize: 13,
-                      color: AppColors.oxfordSoft,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildCaseDetailsStrip(caseId),
             const SizedBox(height: 18),
-
-            // Action CTAs for Won Case
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton.secondary(
-                    label: 'ক্লায়েন্টকে কল করুন',
-                    icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
-                    isFullWidth: true,
-                    onPressed: onCallClient ?? () {},
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AppButton.primary(
-                    label: 'মামলার বিবরণ দেখুন →',
-                    isFullWidth: true,
-                    onPressed: onViewCase ?? () {},
-                  ),
-                ),
-              ],
-            ),
+            _buildCaseActions(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCaseCreatedHeader() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: const BoxDecoration(
+            color: AppColors.verifiedForest,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: AppColors.parchment,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Case Created',
+                    style: AppTypography.displayHeading(
+                      fontSize: 18,
+                      color: AppColors.verifiedForest,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const VerifiedBadge(compact: true),
+                ],
+              ),
+              Text(
+                'মামলা তৈরি হয়েছে — আপনি দায়িত্ব পেয়েছেন',
+                style: AppTypography.banglaBody(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.oxford,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCaseDetailsStrip(String caseId) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentSunken,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.stone, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCaseHeaderRow(caseId),
+          const SizedBox(height: 6),
+          Text(
+            'ক্লায়েন্ট: ${item.personName} (${item.contactPhone})',
+            style: AppTypography.banglaBody(
+              fontSize: 16,
+              color: AppColors.oxford,
+            ),
+          ),
+          Text(
+            'থানা: ${item.thana}',
+            style: AppTypography.caption(
+              fontSize: 13,
+              color: AppColors.oxfordSoft,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCaseHeaderRow(String caseId) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'মামলা নম্বর: $caseId',
+            style: AppTypography.uiBody(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.brass,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'আদালত: ${item.court}',
+          style: AppTypography.caption(color: AppColors.oxfordMuted),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCaseActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: AppButton.secondary(
+            label: 'ক্লায়েন্টকে কল করুন',
+            icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+            isFullWidth: true,
+            onPressed: onCallClient ?? () {},
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: AppButton.primary(
+            label: 'মামলার বিবরণ দেখুন →',
+            isFullWidth: true,
+            onPressed: onViewCase ?? () {},
+          ),
+        ),
+      ],
     );
   }
 
@@ -411,97 +439,10 @@ class SosCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Locked / Taken Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: AppColors.parchmentSunken,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.lock_outline_rounded,
-                    color: AppColors.stoneText,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'This SOS is already taken',
-                        style: AppTypography.displayHeading(
-                          fontSize: 16,
-                          color: AppColors.stoneText,
-                        ),
-                      ),
-                      Text(
-                        'এই SOS ইতিমধ্যে অন্য একজন আইনজীবী গ্রহণ করেছেন',
-                        style: AppTypography.banglaBody(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.oxfordMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.parchmentSunken,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'গৃহীত (Taken)',
-                    style: AppTypography.caption(
-                      fontSize: 11,
-                      color: AppColors.stoneText,
-                    ).copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
+            _buildAlreadyTakenHeader(),
             const SizedBox(height: 14),
-
-            // Calm Explanatory Well in Oxford Muted
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.parchmentElevated,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.stone, width: 0.8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    size: 16,
-                    color: AppColors.stoneText,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'দৌড়ে আপনি পেছনে পড়েছেন — অন্য একজন যাচাইকৃত আইনজীবী দ্রুত সাড়া দিয়েছেন।',
-                      style: AppTypography.caption(
-                        fontSize: 13,
-                        color: AppColors.oxfordMuted,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildAlreadyTakenExplainingWell(),
             const SizedBox(height: 14),
-
-            // Dismiss Button Only (No Action Enabled)
             Align(
               alignment: Alignment.centerRight,
               child: AppButton.secondary(
@@ -511,6 +452,101 @@ class SosCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAlreadyTakenHeader() {
+    return Row(
+      children: [
+        _buildLockIcon(),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This SOS is already taken',
+                style: AppTypography.displayHeading(
+                  fontSize: 16,
+                  color: AppColors.stoneText,
+                ),
+              ),
+              Text(
+                'এই SOS ইতিমধ্যে অন্য একজন আইনজীবী গ্রহণ করেছেন',
+                style: AppTypography.banglaBody(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.oxfordMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _buildTakenStatusBadge(),
+      ],
+    );
+  }
+
+  Widget _buildLockIcon() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: const BoxDecoration(
+        color: AppColors.parchmentSunken,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.lock_outline_rounded,
+        color: AppColors.stoneText,
+        size: 20,
+      ),
+    );
+  }
+
+  Widget _buildTakenStatusBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentSunken,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        'গৃহীত (Taken)',
+        style: AppTypography.caption(
+          fontSize: 11,
+          color: AppColors.stoneText,
+        ).copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildAlreadyTakenExplainingWell() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentElevated,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.stone, width: 0.8),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: AppColors.stoneText,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'দৌড়ে আপনি পেছনে পড়েছেন — অন্য একজন যাচাইকৃত আইনজীবী দ্রুত সাড়া দিয়েছেন।',
+              style: AppTypography.caption(
+                fontSize: 13,
+                color: AppColors.oxfordMuted,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

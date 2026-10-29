@@ -124,205 +124,13 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.brassWash,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.verified_user_rounded,
-                      color: AppColors.brass,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _documentTitle,
-                          style: AppTypography.displayHeading(fontSize: 18),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.advocate.fullName,
-                          style: AppTypography.banglaBody(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.oxfordSoft,
-                          ),
-                        ),
-                        Text(
-                          'বার কাউন্সিল নম্বর: ${widget.advocate.barCouncilNo}',
-                          style: AppTypography.uiBody(
-                            fontSize: 12,
-                            color: AppColors.brass,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Full-screen zoom button
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.fullscreen_rounded,
-                        color: AppColors.brass,
-                      ),
-                      tooltip: 'পূর্ণ পর্দা জুম ভিউ (Full-screen Zoom)',
-                      onPressed: _openFullScreenZoom,
-                    ),
-                  ),
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.oxford,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                ],
-              ),
+              _buildDialogHeader(context),
               const SizedBox(height: 16),
-
-              // Security & Signed URL status bar
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.parchmentElevated,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.stone, width: 1.0),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.lock_clock_rounded,
-                      size: 18,
-                      color: AppColors.brass,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'নিরাপদ ১৫-মিনিট মেয়াদী সাইনড ইউআরএল (Signed URL)',
-                            style: AppTypography.uiBody(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.oxford,
-                            ),
-                          ),
-                          Text(
-                            widget.advocate.isSignedUrlValid
-                                ? 'মেয়াদ সক্রিয় (Active — expires in 15m)'
-                                : 'মেয়াদোত্তীর্ণ বা রিফ্রেশ প্রয়োজন (Expired / Refreshable)',
-                            style: AppTypography.caption(
-                              color: widget.advocate.isSignedUrlValid
-                                  ? AppColors.verifiedForest
-                                  : AppColors.burgundy,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.onRefreshSignedUrl != null)
-                      MinTapTarget(
-                        minHeight: 36,
-                        minWidth: 36,
-                        child: TextButton.icon(
-                          onPressed: _isRefreshing ? null : _handleRefresh,
-                          icon: _isRefreshing
-                              ? const BrassArcLoader(size: 14)
-                              : const Icon(
-                                  Icons.refresh_rounded,
-                                  size: 16,
-                                  color: AppColors.brass,
-                                ),
-                          label: Text(
-                            'রিফ্রেশ',
-                            style: AppTypography.caption(
-                              color: AppColors.brass,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+              _buildSecurityStatusBar(),
               const SizedBox(height: 16),
-
-              // Document Preview Area
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.parchmentSunken,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.stone),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _isRefreshing
-                      ? const Center(
-                          child: GavelBreathingRingLoader(
-                            message: 'নতুন সাইনড ইউআরএল তৈরি হচ্ছে...',
-                            size: 60,
-                          ),
-                        )
-                      : _buildPreviewContent(),
-                ),
-              ),
+              _buildPreviewArea(),
               const SizedBox(height: 20),
-
-              // Bottom Actions
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (widget.onReject != null &&
-                      widget.advocate.status.isPending) ...[
-                    AppButton.secondary(
-                      label: 'প্রত্যাখ্যান (Reject)',
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onReject!();
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  if (widget.onApprove != null &&
-                      widget.advocate.status.isPending) ...[
-                    AppButton.primary(
-                      label: 'অনুমোদন (Approve)',
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onApprove!();
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  AppButton.secondary(
-                    label: 'বন্ধ করুন (Close)',
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
+              _buildDialogActions(context),
             ],
           ),
         ),
@@ -330,88 +138,297 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
     );
   }
 
+  Widget _buildDialogHeader(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeaderIcon(),
+        const SizedBox(width: 14),
+        Expanded(child: _buildHeaderTitles()),
+        _buildHeaderButtons(context),
+      ],
+    );
+  }
+
+  Widget _buildHeaderIcon() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppColors.brassWash,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(
+        Icons.verified_user_rounded,
+        color: AppColors.brass,
+        size: 24,
+      ),
+    );
+  }
+
+  Widget _buildHeaderTitles() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_documentTitle, style: AppTypography.displayHeading(fontSize: 18)),
+        const SizedBox(height: 2),
+        Text(
+          widget.advocate.fullName,
+          style: AppTypography.banglaBody(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.oxfordSoft,
+          ),
+        ),
+        Text(
+          'বার কাউন্সিল নম্বর: ${widget.advocate.barCouncilNo}',
+          style: AppTypography.uiBody(
+            fontSize: 12,
+            color: AppColors.brass,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderButtons(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MinTapTarget(
+          minHeight: 40,
+          minWidth: 40,
+          child: IconButton(
+            icon: const Icon(Icons.fullscreen_rounded, color: AppColors.brass),
+            tooltip: 'পূর্ণ পর্দা জুম ভিউ (Full-screen Zoom)',
+            onPressed: _openFullScreenZoom,
+          ),
+        ),
+        MinTapTarget(
+          minHeight: 40,
+          minWidth: 40,
+          child: IconButton(
+            icon: const Icon(Icons.close_rounded, color: AppColors.oxford),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecurityStatusBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.parchmentElevated,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.stone, width: 1.0),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.lock_clock_rounded,
+            size: 18,
+            color: AppColors.brass,
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: _buildSecurityText()),
+          if (widget.onRefreshSignedUrl != null) _buildSecurityRefreshButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityText() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'নিরাপদ ১৫-মিনিট মেয়াদী সাইনড ইউআরএল (Signed URL)',
+          style: AppTypography.uiBody(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.oxford,
+          ),
+        ),
+        Text(
+          widget.advocate.isSignedUrlValid
+              ? 'মেয়াদ সক্রিয় (Active — expires in 15m)'
+              : 'মেয়াদোত্তীর্ণ বা রিফ্রেশ প্রয়োজন (Expired / Refreshable)',
+          style: AppTypography.caption(
+            color: widget.advocate.isSignedUrlValid
+                ? AppColors.verifiedForest
+                : AppColors.burgundy,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecurityRefreshButton() {
+    return MinTapTarget(
+      minHeight: 36,
+      minWidth: 36,
+      child: TextButton.icon(
+        onPressed: _isRefreshing ? null : _handleRefresh,
+        icon: _isRefreshing
+            ? const BrassArcLoader(size: 14)
+            : const Icon(
+                Icons.refresh_rounded,
+                size: 16,
+                color: AppColors.brass,
+              ),
+        label: Text(
+          'রিফ্রেশ',
+          style: AppTypography.caption(color: AppColors.brass),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewArea() {
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.parchmentSunken,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.stone),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: _isRefreshing
+            ? const Center(
+                child: GavelBreathingRingLoader(
+                  message: 'নতুন সাইনড ইউআরএল তৈরি হচ্ছে...',
+                  size: 60,
+                ),
+              )
+            : _buildPreviewContent(),
+      ),
+    );
+  }
+
+  Widget _buildDialogActions(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (widget.onReject != null && widget.advocate.status.isPending) ...[
+          AppButton.secondary(
+            label: 'প্রত্যাখ্যান (Reject)',
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onReject!();
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        if (widget.onApprove != null && widget.advocate.status.isPending) ...[
+          AppButton.primary(
+            label: 'অনুমোদন (Approve)',
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onApprove!();
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+        AppButton.secondary(
+          label: 'বন্ধ করুন (Close)',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPreviewContent() {
     final url = _signedUrl;
-
     if (url == null || url.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.folder_off_rounded,
-              size: 48,
-              color: AppColors.stoneText,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'কোনো নথি আপলোড করা হয়নি',
-              style: AppTypography.banglaBody(
-                fontSize: 16,
-                color: AppColors.oxfordMuted,
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyPreviewPlaceholder();
     }
-
     if (_isImage) {
-      return Stack(
+      return _buildInteractiveImageView(url);
+    }
+    return _buildDocumentFallbackView();
+  }
+
+  Widget _buildEmptyPreviewPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          InteractiveViewer(
-            minScale: 1.0,
-            maxScale: 4.0,
-            child: Center(
-              child: Image.network(
-                url,
-                fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: GavelBreathingRingLoader(
-                      message: 'সনদপত্র লোড হচ্ছে...',
-                      size: 64,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildDocumentFallbackView();
-                },
-              ),
-            ),
+          const Icon(
+            Icons.folder_off_rounded,
+            size: 48,
+            color: AppColors.stoneText,
           ),
-          Positioned(
-            bottom: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.oxford.withValues(alpha: 0.70),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.zoom_in_rounded,
-                    color: AppColors.parchment,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'পিঞ্চ করে জুম করুন (Pinch to zoom)',
-                    style: AppTypography.caption(color: AppColors.parchment),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 12),
+          Text(
+            'কোনো নথি আপলোড করা হয়নি',
+            style: AppTypography.banglaBody(
+              fontSize: 16,
+              color: AppColors.oxfordMuted,
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
 
-    return _buildDocumentFallbackView();
+  Widget _buildInteractiveImageView(String url) {
+    return Stack(
+      children: [
+        InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 4.0,
+          child: Center(
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: GavelBreathingRingLoader(
+                    message: 'সনদপত্র লোড হচ্ছে...',
+                    size: 64,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDocumentFallbackView();
+              },
+            ),
+          ),
+        ),
+        Positioned(bottom: 12, right: 12, child: _buildPinchZoomHint()),
+      ],
+    );
+  }
+
+  Widget _buildPinchZoomHint() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.oxford.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.zoom_in_rounded,
+            color: AppColors.parchment,
+            size: 16,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'পিঞ্চ করে জুম করুন (Pinch to zoom)',
+            style: AppTypography.caption(color: AppColors.parchment),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDocumentFallbackView() {
@@ -421,59 +438,11 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.parchmentElevated,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.brass, width: 1.5),
-              ),
-              child: const Icon(
-                Icons.picture_as_pdf_rounded,
-                color: AppColors.burgundy,
-                size: 40,
-              ),
-            ),
+            _buildFallbackIcon(),
             const SizedBox(height: 16),
-            Text(
-              'বাংলাদেশ বার কাউন্সিল সনদপত্র কপি',
-              style: AppTypography.banglaBody(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.oxford,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _fileName,
-              style: AppTypography.uiBody(
-                fontSize: 13,
-                color: AppColors.oxfordMuted,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.brassWash,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                'আইনজীবী সনদ: ${widget.advocate.barCouncilNo}',
-                style: AppTypography.caption(color: AppColors.brass),
-              ),
-            ),
+            _buildFallbackLabels(),
             const SizedBox(height: 16),
-            Text(
-              'নিরাপদ প্রিভিউ লিংক: ${_signedUrl?.split('?').first ?? '—'}',
-              style: AppTypography.caption(color: AppColors.stoneText),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
+            _buildFallbackUrl(),
             const SizedBox(height: 12),
             AppButton.ribbon(
               label: 'পূর্ণ পর্দা প্রদর্শন (Open Fullscreen View)',
@@ -483,6 +452,70 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFallbackIcon() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: AppColors.parchmentElevated,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.brass, width: 1.5),
+      ),
+      child: const Icon(
+        Icons.picture_as_pdf_rounded,
+        color: AppColors.burgundy,
+        size: 40,
+      ),
+    );
+  }
+
+  Widget _buildFallbackLabels() {
+    return Column(
+      children: [
+        Text(
+          'বাংলাদেশ বার কাউন্সিল সনদপত্র কপি',
+          style: AppTypography.banglaBody(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.oxford,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _fileName,
+          style: AppTypography.uiBody(
+            fontSize: 13,
+            color: AppColors.oxfordMuted,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.brassWash,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            'আইনজীবী সনদ: ${widget.advocate.barCouncilNo}',
+            style: AppTypography.caption(color: AppColors.brass),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFallbackUrl() {
+    return Text(
+      'নিরাপদ প্রিভিউ লিংক: ${_signedUrl?.split('?').first ?? '—'}',
+      style: AppTypography.caption(color: AppColors.stoneText),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
     );
   }
 }
@@ -544,126 +577,121 @@ class _FullScreenDocumentZoomDialogState
       child: SafeArea(
         child: Column(
           children: [
-            // Top Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: AppColors.oxford,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.security_rounded,
-                    color: AppColors.brass,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.title,
-                          style: AppTypography.displayHeading(
-                            fontSize: 16,
-                            color: AppColors.parchment,
-                          ),
-                        ),
-                        Text(
-                          widget.fileName,
-                          style: AppTypography.caption(
-                            color: AppColors.oxfordMuted,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Zoom controls
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.zoom_out_rounded,
-                        color: AppColors.parchment,
-                      ),
-                      tooltip: 'জুম কমান',
-                      onPressed: _zoomOut,
-                    ),
-                  ),
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.zoom_in_rounded,
-                        color: AppColors.parchment,
-                      ),
-                      tooltip: 'জুম বাড়ান',
-                      onPressed: _zoomIn,
-                    ),
-                  ),
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.restart_alt_rounded,
-                        color: AppColors.parchment,
-                      ),
-                      tooltip: 'রিসেট',
-                      onPressed: _resetZoom,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  MinTapTarget(
-                    minHeight: 40,
-                    minWidth: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.parchment,
-                      ),
-                      tooltip: 'বন্ধ করুন',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildFullScreenTopBar(context),
             const Divider(color: AppColors.stone, height: 1),
+            _buildFullScreenCanvas(),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Zoomable canvas
-            Expanded(
-              child: Container(
-                color: const Color(0xFF0F1117),
-                child: Center(
-                  child: InteractiveViewer(
-                    transformationController: _transformController,
-                    minScale: 0.5,
-                    maxScale: 6.0,
-                    child: widget.isImage
-                        ? Image.network(
-                            widget.url,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(
-                                child: GavelBreathingRingLoader(
-                                  message: 'পূর্ণ রেজোলিউশন লোড হচ্ছে...',
-                                  size: 80,
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildFallbackCard();
-                            },
-                          )
-                        : _buildFallbackCard(),
+  Widget _buildFullScreenTopBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: AppColors.oxford,
+      child: Row(
+        children: [
+          const Icon(Icons.security_rounded, color: AppColors.brass, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.title,
+                  style: AppTypography.displayHeading(
+                    fontSize: 16,
+                    color: AppColors.parchment,
                   ),
                 ),
-              ),
+                Text(
+                  widget.fileName,
+                  style: AppTypography.caption(color: AppColors.oxfordMuted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
+          ),
+          _buildZoomControls(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZoomControls(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildZoomButton(
+          icon: Icons.zoom_out_rounded,
+          tooltip: 'জুম কমান',
+          onPressed: _zoomOut,
+        ),
+        _buildZoomButton(
+          icon: Icons.zoom_in_rounded,
+          tooltip: 'জুম বাড়ান',
+          onPressed: _zoomIn,
+        ),
+        _buildZoomButton(
+          icon: Icons.restart_alt_rounded,
+          tooltip: 'রিসেট',
+          onPressed: _resetZoom,
+        ),
+        const SizedBox(width: 8),
+        _buildZoomButton(
+          icon: Icons.close_rounded,
+          tooltip: 'বন্ধ করুন',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildZoomButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return MinTapTarget(
+      minHeight: 40,
+      minWidth: 40,
+      child: IconButton(
+        icon: Icon(icon, color: AppColors.parchment),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Widget _buildFullScreenCanvas() {
+    return Expanded(
+      child: Container(
+        color: const Color(0xFF0F1117),
+        child: Center(
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            minScale: 0.5,
+            maxScale: 6.0,
+            child: widget.isImage
+                ? Image.network(
+                    widget.url,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: GavelBreathingRingLoader(
+                          message: 'পূর্ণ রেজোলিউশন লোড হচ্ছে...',
+                          size: 80,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildFallbackCard();
+                    },
+                  )
+                : _buildFallbackCard(),
+          ),
         ),
       ),
     );

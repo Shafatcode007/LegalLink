@@ -115,57 +115,62 @@ class SosInboxNotifier extends Notifier<SosInboxState> {
 
     try {
       final caseResult = await _repository.acceptSos(sosId);
-
-      if (!ref.mounted) {
-        if (caseResult != null) {
-          if (caseResult is SosAcceptSuccess) return caseResult;
-          return SosAcceptSuccess(
-            sosRequest: _fallbackItem(sosId, caseResult),
-            caseId: caseResult.caseId,
-          );
-        }
-        return SosAcceptAlreadyTaken(sosId: sosId);
-      }
-
-      final clearedAccepting = Set<String>.from(state.acceptingIds)
-        ..remove(sosId);
-
       if (caseResult != null) {
-        // Won the race! Display "Case Created"
-        final updatedCases = Map<String, String>.from(state.createdCases)
-          ..[sosId] = caseResult.caseId;
-        state = state.copyWith(
-          acceptingIds: clearedAccepting,
-          createdCases: updatedCases,
-        );
-
-        if (caseResult is SosAcceptSuccess) {
-          return caseResult;
-        }
-
-        final item = _fallbackItem(sosId, caseResult);
-        return SosAcceptSuccess(sosRequest: item, caseId: caseResult.caseId);
+        return _handleAcceptSuccess(sosId, caseResult);
       } else {
-        // Lost the race (backend returned null). Display "This SOS is already taken"
-        final updatedTaken = Set<String>.from(state.alreadyTakenIds)
-          ..add(sosId);
-        state = state.copyWith(
-          acceptingIds: clearedAccepting,
-          alreadyTakenIds: updatedTaken,
-        );
-        return SosAcceptAlreadyTaken(sosId: sosId);
+        return _handleAcceptTaken(sosId);
       }
     } catch (e) {
-      if (ref.mounted) {
-        final clearedAccepting = Set<String>.from(state.acceptingIds)
-          ..remove(sosId);
-        state = state.copyWith(
-          acceptingIds: clearedAccepting,
-          errorMessage: e.toString(),
-        );
-      }
-      return SosAcceptFailure(message: e.toString());
+      return _handleAcceptError(sosId, e);
     }
+  }
+
+  SosAcceptResult _handleAcceptSuccess(
+    String sosId,
+    CaseCreationResult caseResult,
+  ) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      final updatedCases = Map<String, String>.from(state.createdCases)
+        ..[sosId] = caseResult.caseId;
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        createdCases: updatedCases,
+      );
+    }
+
+    if (caseResult is SosAcceptSuccess) {
+      return caseResult;
+    }
+
+    final item = _fallbackItem(sosId, caseResult);
+    return SosAcceptSuccess(sosRequest: item, caseId: caseResult.caseId);
+  }
+
+  SosAcceptResult _handleAcceptTaken(String sosId) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      final updatedTaken = Set<String>.from(state.alreadyTakenIds)..add(sosId);
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        alreadyTakenIds: updatedTaken,
+      );
+    }
+    return SosAcceptAlreadyTaken(sosId: sosId);
+  }
+
+  SosAcceptResult _handleAcceptError(String sosId, Object e) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        errorMessage: e.toString(),
+      );
+    }
+    return SosAcceptFailure(message: e.toString());
   }
 
   SosRequestItem _fallbackItem(String sosId, CaseCreationResult result) {

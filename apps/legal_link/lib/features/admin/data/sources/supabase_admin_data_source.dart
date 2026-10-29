@@ -42,14 +42,21 @@ class SupabaseAdminDataSource {
       return _fallback.items;
     }
 
-    final dynamic data;
+    final rows = await _queryAdvocateRows(currentClient);
+    return rows.map((r) => _mapAdvocateRow(r as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<dynamic>> _queryAdvocateRows(SupabaseClient currentClient) async {
     try {
-      data = await currentClient
+      final data = await currentClient
           .from('advocates')
           .select(
-            'profile_id, bar_council_no, courts, districts, specializations, languages, fee_min_bdt, fee_max_bdt, verification, rejection_reason, attempts, sanad_url, nid_url, submitted_at, profiles!inner(full_name, phone)',
+            'profile_id, bar_council_no, courts, districts, specializations, '
+            'languages, fee_min_bdt, fee_max_bdt, verification, rejection_reason, '
+            'attempts, sanad_url, nid_url, submitted_at, profiles!inner(full_name, phone)',
           )
           .order('submitted_at', ascending: false);
+      return data as List<dynamic>;
     } on PostgrestException catch (e) {
       if (e.code == '42501') {
         throw AdminPermissionDeniedFailure(
@@ -68,65 +75,55 @@ class SupabaseAdminDataSource {
         message: 'সার্ভারের সাথে সংযোগ স্থাপন করা যায়নি: $e',
       );
     }
+  }
 
-    final List<dynamic> rows = data as List<dynamic>;
-    final List<AdvocateVerificationItem> items = [];
-
-    for (final row in rows) {
-      final map = row as Map<String, dynamic>;
-      final profile = map['profiles'] as Map<String, dynamic>? ?? {};
-
-      final rawStatus = map['verification'] as String? ?? 'pending';
-      final VerificationStatus status;
-      if (rawStatus == 'verified' || rawStatus == 'approved') {
-        status = VerificationStatus.approved;
-      } else if (rawStatus == 'rejected') {
-        status = VerificationStatus.rejected;
-      } else {
-        status = VerificationStatus.pending;
-      }
-
-      final sanadPath = map['sanad_url'] as String?;
-      final nidPath = map['nid_url'] as String?;
-
-      items.add(
-        AdvocateVerificationItem(
-          id: map['profile_id'] as String,
-          fullName: profile['full_name'] as String? ?? 'আইনজীবী (Advocate)',
-          barCouncilNo: map['bar_council_no'] as String? ?? '—',
-          phone: profile['phone'] as String? ?? '+880 1700-000000',
-          sanadDocUrl: sanadPath,
-          sanadUrl: sanadPath,
-          nidUrl: nidPath,
-          status: status,
-          rejectionReason: map['rejection_reason'] as String?,
-          courts: (map['courts'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList(),
-          districts:
-              (map['districts'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              const [],
-          specializations: (map['specializations'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList(),
-          languages:
-              (map['languages'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              const ['bn'],
-          feeMinBdt: (map['fee_min_bdt'] as num?)?.toDouble(),
-          feeMaxBdt: (map['fee_max_bdt'] as num?)?.toDouble(),
-          submittedAt: map['submitted_at'] != null
-              ? DateTime.tryParse(map['submitted_at'].toString())
-              : null,
-        ),
-      );
+  AdvocateVerificationItem _mapAdvocateRow(Map<String, dynamic> map) {
+    final profile = map['profiles'] as Map<String, dynamic>? ?? {};
+    final rawStatus = map['verification'] as String? ?? 'pending';
+    final VerificationStatus status;
+    if (rawStatus == 'verified' || rawStatus == 'approved') {
+      status = VerificationStatus.approved;
+    } else if (rawStatus == 'rejected') {
+      status = VerificationStatus.rejected;
+    } else {
+      status = VerificationStatus.pending;
     }
 
-    // Return real items from Supabase. Never silently masks an empty state or error with mock data!
-    return items;
+    final sanadPath = map['sanad_url'] as String?;
+    final nidPath = map['nid_url'] as String?;
+
+    return AdvocateVerificationItem(
+      id: map['profile_id'] as String,
+      fullName: profile['full_name'] as String? ?? 'আইনজীবী (Advocate)',
+      barCouncilNo: map['bar_council_no'] as String? ?? '—',
+      phone: profile['phone'] as String? ?? '+880 1700-000000',
+      sanadDocUrl: sanadPath,
+      sanadUrl: sanadPath,
+      nidUrl: nidPath,
+      status: status,
+      rejectionReason: map['rejection_reason'] as String?,
+      courts: (map['courts'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
+      districts:
+          (map['districts'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      specializations: (map['specializations'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
+      languages:
+          (map['languages'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const ['bn'],
+      feeMinBdt: (map['fee_min_bdt'] as num?)?.toDouble(),
+      feeMaxBdt: (map['fee_max_bdt'] as num?)?.toDouble(),
+      submittedAt: map['submitted_at'] != null
+          ? DateTime.tryParse(map['submitted_at'].toString())
+          : null,
+    );
   }
 
   /// Generates a secure, temporary 15-minute signed URL from Supabase private storage (ADR-011).

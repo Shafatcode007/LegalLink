@@ -86,84 +86,93 @@ class SyncBadge extends StatelessWidget {
   }
 
   Widget _buildCompactBadge(BuildContext context) {
-    final Color textColor;
-    final Color backgroundColor;
-    final Color borderColor;
-    final Widget glyph;
-
-    switch (status) {
-      case SyncStatus.synced:
-        textColor = AppColors.verifiedForest;
-        backgroundColor = const Color(0x182F4A38); // Forest green wash
-        borderColor = AppColors.verifiedForest.withValues(alpha: 0.4);
-        glyph = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: AppColors.verifiedForest,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.check_rounded,
-              size: 14,
-              color: AppColors.verifiedForest,
-            ),
-          ],
-        );
-        break;
-
-      case SyncStatus.syncing:
-        textColor = AppColors.brass;
-        backgroundColor = AppColors.brassWash;
-        borderColor = AppColors.brass;
-        glyph = const BrassArcLoader(
-          size: 14,
-          strokeWidth: 2,
-          color: AppColors.brass,
-        );
-        break;
-
-      case SyncStatus.offline:
-      case SyncStatus.queued:
-        textColor = AppColors.oxford;
-        backgroundColor = AppColors.parchmentElevated;
-        borderColor = AppColors.stone;
-        glyph = Icon(
-          status == SyncStatus.queued
-              ? Icons.cloud_queue_rounded
-              : Icons.cloud_off_rounded,
-          size: 15,
-          color: AppColors.oxfordMuted,
-        );
-        break;
-    }
-
+    final style = _getCompactStyle();
     final badgeChild = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: style.backgroundColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1.0),
+        border: Border.all(color: style.borderColor, width: 1.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          glyph,
+          style.glyph,
           const SizedBox(width: 6),
           Text(
             _getLabel(),
-            style: AppTypography.caption(color: textColor)
+            style: AppTypography.caption(color: style.textColor)
                 .copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
     );
 
+    return _wrapBadgeTap(badgeChild);
+  }
+
+  _BadgeStyle _getCompactStyle() {
+    switch (status) {
+      case SyncStatus.synced:
+        return _getCompactSyncedStyle();
+
+      case SyncStatus.syncing:
+        return _BadgeStyle(
+          textColor: AppColors.brass,
+          backgroundColor: AppColors.brassWash,
+          borderColor: AppColors.brass,
+          glyph: const BrassArcLoader(
+            size: 14,
+            strokeWidth: 2,
+            color: AppColors.brass,
+          ),
+        );
+
+      case SyncStatus.offline:
+      case SyncStatus.queued:
+        return _BadgeStyle(
+          textColor: AppColors.oxford,
+          backgroundColor: AppColors.parchmentElevated,
+          borderColor: AppColors.stone,
+          glyph: Icon(
+            status == SyncStatus.queued
+                ? Icons.cloud_queue_rounded
+                : Icons.cloud_off_rounded,
+            size: 15,
+            color: AppColors.oxfordMuted,
+          ),
+        );
+    }
+  }
+
+  _BadgeStyle _getCompactSyncedStyle() {
+    return _BadgeStyle(
+      textColor: AppColors.verifiedForest,
+      backgroundColor: const Color(0x182F4A38),
+      borderColor: AppColors.verifiedForest.withValues(alpha: 0.4),
+      glyph: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.verifiedForest,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            Icons.check_rounded,
+            size: 14,
+            color: AppColors.verifiedForest,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _wrapBadgeTap(Widget badgeChild) {
     if (onTap != null) {
       return MinTapTarget(
         minHeight: 48,
@@ -184,123 +193,91 @@ class SyncBadge extends StatelessWidget {
 
   Widget _buildFullBanner(BuildContext context) {
     if (isQueueBlocked) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.burgundyWash,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.burgundy, width: 1.2),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.warning_amber_rounded,
-              color: AppColors.burgundy,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'অপেক্ষারতার সীমা পূর্ণ (১০০)। সংযোগ ফিরে আসলে আবার চেষ্টা করুন।',
-                style: AppTypography.banglaBody(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.burgundy,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildBlockedBanner();
     }
-
     if (isQueueWarning) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.brassWash,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.brass, width: 1.0),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.info_outline_rounded,
-              color: AppColors.brass,
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'সংযোগ দুর্বল — পরিবর্তনগুলো পরে সিংক হবে ($pendingCount অপেক্ষায়)।',
-                style: AppTypography.banglaBody(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.oxford,
-                ),
+      return _buildWarningBanner();
+    }
+    return _buildStandardBanner();
+  }
+
+  Widget _buildBlockedBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.burgundyWash,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.burgundy, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.burgundy,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'অপেক্ষারতার সীমা পূর্ণ (১০০)। সংযোগ ফিরে আসলে আবার চেষ্টা করুন।',
+              style: AppTypography.banglaBody(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.burgundy,
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    // Standard banner state
-    final Color bannerBg;
-    final Color bannerBorder;
-    final Widget bannerGlyph;
-
-    switch (status) {
-      case SyncStatus.synced:
-        bannerBg = const Color(0x142F4A38);
-        bannerBorder = AppColors.verifiedForest.withValues(alpha: 0.4);
-        bannerGlyph = Container(
-          width: 10,
-          height: 10,
-          decoration: const BoxDecoration(
-            color: AppColors.verifiedForest,
-            shape: BoxShape.circle,
           ),
-        );
-        break;
+        ],
+      ),
+    );
+  }
 
-      case SyncStatus.syncing:
-        bannerBg = AppColors.brassWash;
-        bannerBorder = AppColors.brass;
-        bannerGlyph = const BrassArcLoader(
-          size: 16,
-          strokeWidth: 2,
-          color: AppColors.brass,
-        );
-        break;
-
-      case SyncStatus.offline:
-      case SyncStatus.queued:
-        bannerBg = AppColors.parchment;
-        bannerBorder = AppColors.stone;
-        bannerGlyph = Icon(
-          status == SyncStatus.queued
-              ? Icons.cloud_queue_rounded
-              : Icons.cloud_off_rounded,
-          size: 18,
-          color: AppColors.oxfordMuted,
-        );
-        break;
-    }
-
+  Widget _buildWarningBanner() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: bannerBg,
+        color: AppColors.brassWash,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: bannerBorder, width: 1.2),
+        border: Border.all(color: AppColors.brass, width: 1.0),
       ),
       child: Row(
         children: [
-          bannerGlyph,
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.brass,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'সংযোগ দুর্বল — পরিবর্তনগুলো পরে সিংক হবে ($pendingCount অপেক্ষায়)।',
+              style: AppTypography.banglaBody(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.oxford,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStandardBanner() {
+    final style = _getStandardBannerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: style.backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: style.borderColor, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          style.glyph,
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -318,22 +295,73 @@ class SyncBadge extends StatelessWidget {
                   ),
             ),
           ),
-          if (status == SyncStatus.queued && onTap != null) ...[
-            const SizedBox(width: 8),
-            MinTapTarget(
-              minHeight: 36,
-              minWidth: 48,
-              child: TextButton(
-                onPressed: onTap,
-                child: Text(
-                  'সিংক করুন',
-                  style: AppTypography.caption(color: AppColors.brass)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
+          if (status == SyncStatus.queued && onTap != null)
+            _buildSyncNowButton(),
         ],
+      ),
+    );
+  }
+
+  _BadgeStyle _getStandardBannerStyle() {
+    switch (status) {
+      case SyncStatus.synced:
+        return _BadgeStyle(
+          textColor: AppColors.verifiedForest,
+          backgroundColor: const Color(0x142F4A38),
+          borderColor: AppColors.verifiedForest.withValues(alpha: 0.4),
+          glyph: Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              color: AppColors.verifiedForest,
+              shape: BoxShape.circle,
+            ),
+          ),
+        );
+
+      case SyncStatus.syncing:
+        return const _BadgeStyle(
+          textColor: AppColors.brass,
+          backgroundColor: AppColors.brassWash,
+          borderColor: AppColors.brass,
+          glyph: BrassArcLoader(
+            size: 16,
+            strokeWidth: 2,
+            color: AppColors.brass,
+          ),
+        );
+
+      case SyncStatus.offline:
+      case SyncStatus.queued:
+        return _BadgeStyle(
+          textColor: AppColors.oxford,
+          backgroundColor: AppColors.parchment,
+          borderColor: AppColors.stone,
+          glyph: Icon(
+            status == SyncStatus.queued
+                ? Icons.cloud_queue_rounded
+                : Icons.cloud_off_rounded,
+            size: 18,
+            color: AppColors.oxfordMuted,
+          ),
+        );
+    }
+  }
+
+  Widget _buildSyncNowButton() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: MinTapTarget(
+        minHeight: 36,
+        minWidth: 48,
+        child: TextButton(
+          onPressed: onTap,
+          child: Text(
+            'সিংক করুন',
+            style: AppTypography.caption(color: AppColors.brass)
+                .copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
     );
   }
@@ -377,4 +405,18 @@ class SyncBadge extends StatelessWidget {
         return 'Offline with $pendingCount pending queued items';
     }
   }
+}
+
+class _BadgeStyle {
+  const _BadgeStyle({
+    required this.textColor,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.glyph,
+  });
+
+  final Color textColor;
+  final Color backgroundColor;
+  final Color borderColor;
+  final Widget glyph;
 }
