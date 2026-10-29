@@ -596,5 +596,20 @@ begin;
   end $$;
 rollback;
 
+-- ---------------------------------------------------------------------
+-- D-18: sos_requests is published to Supabase Realtime (sos:{district}, TRD §6.5)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  do $$
+  begin
+    if not exists (select 1 from pg_publication_tables
+                    where pubname = 'supabase_realtime'
+                      and schemaname = 'public' and tablename = 'sos_requests') then
+      raise exception 'D-18 FAILED: sos_requests is not in the supabase_realtime publication';
+    end if;
+  end $$;
+rollback;
+
 reset role;
 select '*** ALL HITL RLS TESTS PASSED ***' as result;
