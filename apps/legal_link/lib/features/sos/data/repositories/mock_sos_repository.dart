@@ -15,7 +15,7 @@ class MockSosRepository implements SosRepository {
   final List<SosRequestItem> _outbox = [];
 
   /// If set to a specific SOS ID, `acceptSos(id)` will simulate losing the race
-  /// by returning [SosAcceptAlreadyTaken] (backend returned null).
+  /// by returning `null` (backend returned null).
   String? simulateRaceConditionForId;
 
   static List<SosRequestItem> _defaultMockItems() {
@@ -75,19 +75,19 @@ class MockSosRepository implements SosRepository {
   }
 
   @override
-  Future<SosAcceptResult> acceptSos(String sosId) async {
+  Future<CaseCreationResult?> acceptSos(String sosId) async {
     // Simulated network latency
     await Future.delayed(const Duration(milliseconds: 250));
 
     // Simulate race condition if configured or if item does not exist/already accepted
     if (simulateRaceConditionForId == sosId) {
       _items = _items.where((i) => i.id != sosId).toList();
-      return SosAcceptAlreadyTaken(sosId: sosId);
+      return null;
     }
 
     final index = _items.indexWhere((i) => i.id == sosId);
     if (index == -1) {
-      return SosAcceptAlreadyTaken(sosId: sosId);
+      return null;
     }
 
     final acceptedItem = _items[index].copyWith(

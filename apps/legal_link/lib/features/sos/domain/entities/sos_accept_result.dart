@@ -1,4 +1,7 @@
+import 'case_creation_result.dart';
 import 'sos_request_item.dart';
+
+export 'case_creation_result.dart';
 
 /// Pure Dart result of an advocate's accept action on an SOS request (TRD §5.4, §8.1).
 ///
@@ -11,11 +14,43 @@ sealed class SosAcceptResult {
 }
 
 /// Advocate successfully accepted the SOS; backend returned the row and created the case.
-class SosAcceptSuccess extends SosAcceptResult {
-  const SosAcceptSuccess({required this.sosRequest, required this.caseId});
+/// Also implements [CaseCreationResult] per Sprint 2 spec.
+class SosAcceptSuccess extends SosAcceptResult implements CaseCreationResult {
+  const SosAcceptSuccess({
+    required this.sosRequest,
+    required this.caseId,
+    this.caseNumber,
+    this.createdAt,
+  });
 
   final SosRequestItem sosRequest;
+
+  @override
   final String caseId;
+
+  @override
+  final String? caseNumber;
+
+  @override
+  final DateTime? createdAt;
+
+  @override
+  String get sosId => sosRequest.id;
+
+  @override
+  String? get clientName => sosRequest.personName;
+
+  @override
+  String? get thana => sosRequest.thana;
+
+  @override
+  String? get district => sosRequest.district;
+
+  @override
+  String? get court => sosRequest.court;
+
+  @override
+  String? get contactPhone => sosRequest.contactPhone;
 }
 
 /// Another advocate accepted first; backend `accept_sos` returned `null`.

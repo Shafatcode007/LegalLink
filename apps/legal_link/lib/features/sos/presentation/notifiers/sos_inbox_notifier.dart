@@ -4,6 +4,9 @@ import '../../domain/entities/sos_accept_result.dart';
 import '../../domain/entities/sos_request_item.dart';
 import '../../domain/repositories/sos_repository.dart';
 
+export '../../domain/entities/case_creation_result.dart';
+export '../../domain/entities/sos_accept_result.dart';
+
 /// State representation for the Advocate SOS Inbox (Sprint 2, Role B2).
 class SosInboxState {
   const SosInboxState({
@@ -111,52 +114,77 @@ class SosInboxNotifier extends Notifier<SosInboxState> {
     state = state.copyWith(acceptingIds: updatedAccepting);
 
     try {
-      final result = await _repository.acceptSos(sosId);
-
-      if (!ref.mounted) return result;
-
-      final clearedAccepting = Set<String>.from(state.acceptingIds)
-        ..remove(sosId);
-
-      switch (result) {
-        case SosAcceptSuccess(:final caseId):
-          // Won the race! Display "Case Created"
-          final updatedCases = Map<String, String>.from(state.createdCases)
-            ..[sosId] = caseId;
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            createdCases: updatedCases,
-          );
-          return result;
-
-        case SosAcceptAlreadyTaken():
-          // Lost the race (backend returned null). Display "This SOS is already taken"
-          final updatedTaken = Set<String>.from(state.alreadyTakenIds)
-            ..add(sosId);
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            alreadyTakenIds: updatedTaken,
-          );
-          return result;
-
-        case SosAcceptFailure(:final message):
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            errorMessage: message,
-          );
-          return result;
+      final caseResult = await _repository.acceptSos(sosId);
+      if (caseResult != null) {
+        return _handleAcceptSuccess(sosId, caseResult);
+      } else {
+        return _handleAcceptTaken(sosId);
       }
     } catch (e) {
-      if (ref.mounted) {
-        final clearedAccepting = Set<String>.from(state.acceptingIds)
-          ..remove(sosId);
-        state = state.copyWith(
-          acceptingIds: clearedAccepting,
-          errorMessage: e.toString(),
-        );
-      }
-      return SosAcceptFailure(message: e.toString());
+      return _handleAcceptError(sosId, e);
     }
+  }
+
+  SosAcceptResult _handleAcceptSuccess(
+    String sosId,
+    CaseCreationResult caseResult,
+  ) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      final updatedCases = Map<String, String>.from(state.createdCases)
+        ..[sosId] = caseResult.caseId;
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        createdCases: updatedCases,
+      );
+    }
+
+    if (caseResult is SosAcceptSuccess) {
+      return caseResult;
+    }
+
+    final item = _fallbackItem(sosId, caseResult);
+    return SosAcceptSuccess(sosRequest: item, caseId: caseResult.caseId);
+  }
+
+  SosAcceptResult _handleAcceptTaken(String sosId) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      final updatedTaken = Set<String>.from(state.alreadyTakenIds)..add(sosId);
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        alreadyTakenIds: updatedTaken,
+      );
+    }
+    return SosAcceptAlreadyTaken(sosId: sosId);
+  }
+
+  SosAcceptResult _handleAcceptError(String sosId, Object e) {
+    if (ref.mounted) {
+      final clearedAccepting = Set<String>.from(state.acceptingIds)
+        ..remove(sosId);
+      state = state.copyWith(
+        acceptingIds: clearedAccepting,
+        errorMessage: e.toString(),
+      );
+    }
+    return SosAcceptFailure(message: e.toString());
+  }
+
+  SosRequestItem _fallbackItem(String sosId, CaseCreationResult result) {
+    return state.items.firstWhere(
+      (i) => i.id == sosId,
+      orElse: () => SosRequestItem(
+        id: sosId,
+        clientId: 'client-1',
+        personName: result.clientName ?? 'ক্লায়েন্ট',
+        thana: result.thana ?? '',
+        district: result.district ?? '',
+        contactPhone: result.contactPhone ?? '',
+      ),
+    );
   }
 
   /// Advocate declines / dismisses an SOS alert from their inbox.
