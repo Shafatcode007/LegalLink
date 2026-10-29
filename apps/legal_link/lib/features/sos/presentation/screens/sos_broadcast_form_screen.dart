@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/shared.dart';
 import '../../domain/entities/sos_request_item.dart';
 import '../notifiers/sos_form_notifier.dart';
+import 'sos_draft_review_screen.dart';
 
 /// Client SOS Broadcast Form Screen (Sprint 2, Role B2).
 ///
@@ -455,6 +456,23 @@ class _SosBroadcastFormScreenState extends ConsumerState<SosBroadcastFormScreen>
 
               // 5. Broadcast CTA with 600ms Hold-to-Confirm Gesture (ui_ux.md §1.4.2)
               _buildHoldToBroadcastButton(context, formState, notifier),
+              const SizedBox(height: 12),
+
+              // Review Draft & Offline State Screen navigation (Task C)
+              Center(
+                child: AppButton.ribbon(
+                  label:
+                      'খসড়া পর্যালোচনা ও অফলাইন স্থিতি দেখুন → (Review Draft)',
+                  icon: const Icon(Icons.rate_review_outlined, size: 16),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SosDraftReviewScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
               const SizedBox(height: 20),
             ],
           ),

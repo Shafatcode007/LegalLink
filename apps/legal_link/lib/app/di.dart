@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/admin/data/repositories/supabase_admin_verification_repository.dart';
 import '../features/admin/data/repositories/verification_repository_impl.dart';
+import '../features/admin/domain/repositories/admin_repository.dart';
 import '../features/admin/domain/repositories/admin_verification_repository.dart';
 import '../features/admin/presentation/notifiers/admin_verification_notifier.dart';
 import '../features/auth/data/mock_auth_repository.dart';
@@ -31,17 +32,37 @@ import '../features/sos/data/local_sos_repository.dart';
 import '../features/sos/domain/sos_providers.dart' as client_sos;
 import 'config.dart';
 
+export '../features/admin/domain/repositories/admin_repository.dart';
 export '../features/admin/presentation/providers/admin_verification_provider.dart';
 
 /// Composition Root overrides factory.
 List<Override> createDiOverrides({
+  AdminRepository? adminRepository,
   AdminVerificationRepository? adminVerificationRepository,
   SosRepository? sosRepository,
 }) {
+  final AdminRepository concreteAdminRepo;
+  if (adminRepository != null) {
+    concreteAdminRepo = adminRepository;
+  } else if (adminVerificationRepository is AdminRepository) {
+    concreteAdminRepo = adminVerificationRepository as AdminRepository;
+  } else {
+    concreteAdminRepo = SupabaseAdminRepository();
+  }
+
+  final AdminVerificationRepository concreteVerificationRepo;
+  if (adminVerificationRepository != null) {
+    concreteVerificationRepo = adminVerificationRepository;
+  } else if (concreteAdminRepo is AdminVerificationRepository) {
+    concreteVerificationRepo = concreteAdminRepo as AdminVerificationRepository;
+  } else {
+    concreteVerificationRepo = SupabaseAdminVerificationRepository();
+  }
+
   return [
+    adminRepositoryProvider.overrideWith((ref) => concreteAdminRepo),
     adminVerificationRepositoryProvider.overrideWith(
-      (ref) =>
-          adminVerificationRepository ?? SupabaseAdminVerificationRepository(),
+      (ref) => concreteVerificationRepo,
     ),
     sosRepositoryProvider.overrideWith(
       (ref) => sosRepository ?? SupabaseSosRepository(),
@@ -54,16 +75,18 @@ List<Override> createDiOverrides({
 }
 
 /// Bindings shared by the app and the admin smoke surface.
-final appOverrides = createDiOverrides();
+List<Override> get appOverrides => createDiOverrides();
 
 /// Helper wrapper to wrap the application or test root with composition-bound [ProviderScope].
 Widget withDependencyInjection({
   required Widget child,
+  AdminRepository? adminRepository,
   AdminVerificationRepository? adminVerificationRepository,
   SosRepository? sosRepository,
 }) {
   return ProviderScope(
     overrides: createDiOverrides(
+      adminRepository: adminRepository,
       adminVerificationRepository: adminVerificationRepository,
       sosRepository: sosRepository,
     ),

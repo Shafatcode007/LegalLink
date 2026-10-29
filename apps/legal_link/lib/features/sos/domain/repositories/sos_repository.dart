@@ -1,11 +1,11 @@
 import 'package:riverpod/riverpod.dart';
 
-import '../entities/sos_accept_result.dart';
+import '../entities/case_creation_result.dart';
 import '../entities/sos_request_item.dart';
 
 /// Pure Dart repository interface for SOS operations (Role B2, Sprint 2).
 ///
-/// TRD §8.1: No flutter, supabase_flutter, hive, data/, or presentation/ imports.
+/// TRD §8.1: Pure Dart: No flutter, supabase_flutter, hive, data/, or presentation/ imports.
 abstract class SosRepository {
   /// Fetches open SOS alerts for the advocate's district.
   Future<List<SosRequestItem>> getAdvocateInbox();
@@ -15,9 +15,10 @@ abstract class SosRepository {
 
   /// Advocate attempts to accept an SOS request.
   ///
-  /// Calls `accept_sos(uuid)` RPC. If the RPC returns `null`, returns [SosAcceptAlreadyTaken].
-  /// On success, returns [SosAcceptSuccess] with the generated case ID.
-  Future<SosAcceptResult> acceptSos(String sosId);
+  /// Calls `accept_sos(uuid)` RPC.
+  /// - If the RPC returns `null` or conflict error (lost race to another advocate), returns `null`.
+  /// - On success (winning advocate), returns [CaseCreationResult] with the generated case ID.
+  Future<CaseCreationResult?> acceptSos(String sosId);
 
   /// Advocate declines / dismisses an SOS alert from their inbox.
   Future<void> declineSos(String sosId);

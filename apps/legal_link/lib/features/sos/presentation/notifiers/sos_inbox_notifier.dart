@@ -4,6 +4,9 @@ import '../../domain/entities/sos_accept_result.dart';
 import '../../domain/entities/sos_request_item.dart';
 import '../../domain/repositories/sos_repository.dart';
 
+export '../../domain/entities/case_creation_result.dart';
+export '../../domain/entities/sos_accept_result.dart';
+
 /// State representation for the Advocate SOS Inbox (Sprint 2, Role B2).
 class SosInboxState {
   const SosInboxState({
@@ -111,40 +114,46 @@ class SosInboxNotifier extends Notifier<SosInboxState> {
     state = state.copyWith(acceptingIds: updatedAccepting);
 
     try {
-      final result = await _repository.acceptSos(sosId);
+      final caseResult = await _repository.acceptSos(sosId);
 
-      if (!ref.mounted) return result;
+      if (!ref.mounted) {
+        if (caseResult != null) {
+          if (caseResult is SosAcceptSuccess) return caseResult;
+          return SosAcceptSuccess(
+            sosRequest: _fallbackItem(sosId, caseResult),
+            caseId: caseResult.caseId,
+          );
+        }
+        return SosAcceptAlreadyTaken(sosId: sosId);
+      }
 
       final clearedAccepting = Set<String>.from(state.acceptingIds)
         ..remove(sosId);
 
-      switch (result) {
-        case SosAcceptSuccess(:final caseId):
-          // Won the race! Display "Case Created"
-          final updatedCases = Map<String, String>.from(state.createdCases)
-            ..[sosId] = caseId;
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            createdCases: updatedCases,
-          );
-          return result;
+      if (caseResult != null) {
+        // Won the race! Display "Case Created"
+        final updatedCases = Map<String, String>.from(state.createdCases)
+          ..[sosId] = caseResult.caseId;
+        state = state.copyWith(
+          acceptingIds: clearedAccepting,
+          createdCases: updatedCases,
+        );
 
-        case SosAcceptAlreadyTaken():
-          // Lost the race (backend returned null). Display "This SOS is already taken"
-          final updatedTaken = Set<String>.from(state.alreadyTakenIds)
-            ..add(sosId);
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            alreadyTakenIds: updatedTaken,
-          );
-          return result;
+        if (caseResult is SosAcceptSuccess) {
+          return caseResult;
+        }
 
-        case SosAcceptFailure(:final message):
-          state = state.copyWith(
-            acceptingIds: clearedAccepting,
-            errorMessage: message,
-          );
-          return result;
+        final item = _fallbackItem(sosId, caseResult);
+        return SosAcceptSuccess(sosRequest: item, caseId: caseResult.caseId);
+      } else {
+        // Lost the race (backend returned null). Display "This SOS is already taken"
+        final updatedTaken = Set<String>.from(state.alreadyTakenIds)
+          ..add(sosId);
+        state = state.copyWith(
+          acceptingIds: clearedAccepting,
+          alreadyTakenIds: updatedTaken,
+        );
+        return SosAcceptAlreadyTaken(sosId: sosId);
       }
     } catch (e) {
       if (ref.mounted) {
@@ -157,6 +166,20 @@ class SosInboxNotifier extends Notifier<SosInboxState> {
       }
       return SosAcceptFailure(message: e.toString());
     }
+  }
+
+  SosRequestItem _fallbackItem(String sosId, CaseCreationResult result) {
+    return state.items.firstWhere(
+      (i) => i.id == sosId,
+      orElse: () => SosRequestItem(
+        id: sosId,
+        clientId: 'client-1',
+        personName: result.clientName ?? 'ক্লায়েন্ট',
+        thana: result.thana ?? '',
+        district: result.district ?? '',
+        contactPhone: result.contactPhone ?? '',
+      ),
+    );
   }
 
   /// Advocate declines / dismisses an SOS alert from their inbox.
