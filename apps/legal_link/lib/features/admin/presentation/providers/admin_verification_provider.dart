@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/admin_failure.dart';
 import '../../domain/entities/advocate_verification_item.dart';
 import '../../domain/repositories/admin_verification_repository.dart';
 
+export '../../domain/entities/admin_failure.dart';
 export '../../domain/entities/advocate_verification_item.dart';
 
 /// State representation for the Admin Verification Queue.
@@ -33,18 +35,21 @@ class AdminVerificationState {
   int get rejectedCount =>
       items.where((item) => item.status == VerificationStatus.rejected).length;
 
+  bool get hasError => errorMessage != null;
+
   AdminVerificationState copyWith({
     List<AdvocateVerificationItem>? items,
     bool? isLoading,
     VerificationStatus? filter,
     bool clearFilter = false,
     String? errorMessage,
+    bool clearError = false,
   }) {
     return AdminVerificationState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       filter: clearFilter ? null : (filter ?? this.filter),
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
@@ -65,15 +70,20 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
 
   /// Loads advocates asynchronously and resolves signed URLs
   Future<void> load() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final items = await _repository.getAdvocates();
       if (ref.mounted) {
-        state = state.copyWith(items: items, isLoading: false);
+        state = state.copyWith(
+          items: items,
+          isLoading: false,
+          clearError: true,
+        );
       }
     } catch (e) {
       if (ref.mounted) {
-        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+        final message = e is AdminFailure ? e.message : e.toString();
+        state = state.copyWith(isLoading: false, errorMessage: message);
       }
     }
   }
@@ -89,23 +99,28 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
 
   /// Approve advocate and update through repository
   Future<void> approve(String id) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _repository.updateStatus(id, VerificationStatus.approved);
       final updated = await _repository.getAdvocates();
       if (ref.mounted) {
-        state = state.copyWith(items: updated, isLoading: false);
+        state = state.copyWith(
+          items: updated,
+          isLoading: false,
+          clearError: true,
+        );
       }
     } catch (e) {
       if (ref.mounted) {
-        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+        final message = e is AdminFailure ? e.message : e.toString();
+        state = state.copyWith(isLoading: false, errorMessage: message);
       }
     }
   }
 
   /// Reject advocate and update through repository with optional reason
   Future<void> reject(String id, {String? reason}) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _repository.updateStatus(
         id,
@@ -114,11 +129,16 @@ class AdminVerificationNotifier extends Notifier<AdminVerificationState> {
       );
       final updated = await _repository.getAdvocates();
       if (ref.mounted) {
-        state = state.copyWith(items: updated, isLoading: false);
+        state = state.copyWith(
+          items: updated,
+          isLoading: false,
+          clearError: true,
+        );
       }
     } catch (e) {
       if (ref.mounted) {
-        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+        final message = e is AdminFailure ? e.message : e.toString();
+        state = state.copyWith(isLoading: false, errorMessage: message);
       }
     }
   }

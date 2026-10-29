@@ -8,11 +8,144 @@ import '../widgets/verification_status_chip.dart';
 import 'advocate_profile_view_screen.dart';
 
 /// Screen displaying the administrative queue of advocates awaiting verification.
-class AdminVerificationQueueScreen extends ConsumerWidget {
+///
+/// Features (Sprint 2, Role B2):
+/// 1. Real Supabase backend wired with signed URLs (ADR-011).
+/// 2. Document preview with zoom / full-screen inspection dialog.
+/// 3. Branded breathing gavel shimmer skeleton state while signed URL or queue is resolving.
+/// 4. Direct Approve & Reject actions with instant optimistic state updates and feedback.
+class AdminVerificationQueueScreen extends ConsumerStatefulWidget {
   const AdminVerificationQueueScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminVerificationQueueScreen> createState() =>
+      _AdminVerificationQueueScreenState();
+}
+
+class _AdminVerificationQueueScreenState
+    extends ConsumerState<AdminVerificationQueueScreen> {
+  final Set<String> _resolvingSignedUrlIds = {};
+
+  Future<void> _handleViewDocumentPreview(
+    BuildContext context,
+    AdvocateVerificationItem item,
+  ) async {
+    setState(() => _resolvingSignedUrlIds.add(item.id));
+    try {
+      // Ensure signed URL is fresh (15-min window per ADR-011)
+      if (!item.isSignedUrlValid) {
+        await ref
+            .read(adminVerificationProvider.notifier)
+            .getSignedUrlFor(item.id);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _resolvingSignedUrlIds.remove(item.id));
+      }
+    }
+
+    if (!context.mounted) return;
+
+    final freshItem =
+        ref.read(adminVerificationProvider.notifier).getById(item.id) ?? item;
+
+    DocumentPreviewDialog.show(
+      context,
+      advocate: freshItem,
+      onApprove: () => _handleApprove(context, item.id),
+      onReject: () => _handleReject(context, item.id),
+      onRefreshSignedUrl: () =>
+          ref.read(adminVerificationProvider.notifier).getSignedUrlFor(item.id),
+    );
+  }
+
+  Future<void> _handleApprove(BuildContext context, String advocateId) async {
+    final notifier = ref.read(adminVerificationProvider.notifier);
+    await notifier.approve(advocateId);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AppColors.verifiedForest,
+        content: Text('✓ আইনজীবী সফলভাবে অনুমোদিত হয়েছে (Advocate Approved)'),
+      ),
+    );
+  }
+
+  Future<void> _handleReject(BuildContext context, String advocateId) async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.parchment,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.stone),
+        ),
+        title: Text(
+          'প্রত্যাখ্যানের কারণ লিখুন',
+          style: AppTypography.displayHeading(fontSize: 18),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'আইনজীবীর সনদ বা নথিপত্র বাতিলের সুনির্দিষ্ট কারণ উল্লেখ করুন:',
+              style: AppTypography.caption(color: AppColors.oxfordMuted),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              style: AppTypography.uiBody(color: AppColors.oxford),
+              decoration: InputDecoration(
+                hintText: 'যেমন: বার সনদপত্র অস্পষ্ট বা মেয়াদোত্তীর্ণ...',
+                hintStyle: AppTypography.caption(color: AppColors.stoneText),
+                filled: true,
+                fillColor: AppColors.parchmentElevated,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.stone),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'বাতিল',
+              style: AppTypography.uiBody(color: AppColors.oxfordMuted),
+            ),
+          ),
+          AppButton.secondary(
+            label: 'প্রত্যাখ্যান নিশ্চিত করুন',
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final reason = reasonController.text.trim();
+      final notifier = ref.read(adminVerificationProvider.notifier);
+      await notifier.reject(
+        advocateId,
+        reason: reason.isNotEmpty ? reason : null,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.oxford,
+          content: Text('আবেদনটি প্রত্যাখ্যাত হয়েছে (Advocate Rejected)'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(adminVerificationProvider);
     final notifier = ref.read(adminVerificationProvider.notifier);
 
@@ -54,13 +187,12 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
         ],
       ),
       body: state.isLoading
-          ? const Center(
-              child: GavelBreathingRingLoader(
-                message: 'যাচাইকরণ তালিকা লোড হচ্ছে...',
-              ),
-            )
+          ? _buildBreathingGavelShimmerQueue()
           : Column(
               children: [
+                if (state.errorMessage != null &&
+                    state.filteredItems.isNotEmpty)
+                  _buildErrorBanner(context, ref, state.errorMessage!),
                 // Filter Bar
                 _buildFilterBar(context, ref, state),
                 const Divider(color: AppColors.stone, height: 1),
@@ -68,7 +200,9 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                 // Main Queue Content
                 Expanded(
                   child: state.filteredItems.isEmpty
-                      ? _buildEmptyState(context)
+                      ? (state.errorMessage != null
+                            ? _buildErrorView(context, ref, state.errorMessage!)
+                            : _buildEmptyState(context))
                       : ListView.separated(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -85,6 +219,82 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                 ),
               ],
             ),
+    );
+  }
+
+  /// Branded breathing gavel shimmer skeleton loading state per ui_ux.md §4.2
+  Widget _buildBreathingGavelShimmerQueue() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        children: [
+          // Centered breathing gavel glyph
+          const Center(
+            child: GavelBreathingRingLoader(
+              message: 'যাচাইকরণ তালিকা লোড হচ্ছে...',
+              size: 64,
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Shimmer skeleton cards
+          for (int i = 0; i < 3; i++) ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.parchmentElevated,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.stone.withValues(alpha: 0.6),
+                ),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      LegalSkeletonLoader(width: 180, height: 20),
+                      LegalSkeletonLoader(
+                        width: 90,
+                        height: 24,
+                        borderRadius: 12,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  LegalSkeletonLoader(width: 140, height: 14),
+                  SizedBox(height: 14),
+                  LegalSkeletonLoader(
+                    width: double.infinity,
+                    height: 52,
+                    borderRadius: 8,
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: LegalSkeletonLoader(
+                          height: 44,
+                          borderRadius: 22,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: LegalSkeletonLoader(
+                          height: 44,
+                          borderRadius: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ],
+      ),
     );
   }
 
@@ -173,6 +383,8 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
     WidgetRef ref,
     AdvocateVerificationItem item,
   ) {
+    final isResolvingUrl = _resolvingSignedUrlIds.contains(item.id);
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.parchmentElevated,
@@ -243,7 +455,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
 
-            // Document Preview Card with Signed URL (TRD ADR-011)
+            // Document Preview Card with Signed URL (ADR-011)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -261,11 +473,15 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: AppColors.stone, width: 0.8),
                     ),
-                    child: const Icon(
-                      Icons.picture_as_pdf_rounded,
-                      color: AppColors.burgundy,
-                      size: 20,
-                    ),
+                    child: isResolvingUrl
+                        ? const Center(
+                            child: BrassArcLoader(size: 16, strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.picture_as_pdf_rounded,
+                            color: AppColors.burgundy,
+                            size: 20,
+                          ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -320,28 +536,18 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                     minHeight: 36,
                     minWidth: 48,
                     child: TextButton.icon(
-                      onPressed: () {
-                        DocumentPreviewDialog.show(
-                          context,
-                          advocate: item,
-                          onApprove: () => ref
-                              .read(adminVerificationProvider.notifier)
-                              .approve(item.id),
-                          onReject: () => ref
-                              .read(adminVerificationProvider.notifier)
-                              .reject(item.id),
-                          onRefreshSignedUrl: () => ref
-                              .read(adminVerificationProvider.notifier)
-                              .getSignedUrlFor(item.id),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.visibility_outlined,
-                        size: 16,
-                        color: AppColors.brass,
-                      ),
+                      onPressed: isResolvingUrl
+                          ? null
+                          : () => _handleViewDocumentPreview(context, item),
+                      icon: isResolvingUrl
+                          ? const BrassArcLoader(size: 14)
+                          : const Icon(
+                              Icons.visibility_outlined,
+                              size: 16,
+                              color: AppColors.brass,
+                            ),
                       label: Text(
-                        'প্রিভিউ (Preview)',
+                        isResolvingUrl ? 'লোড হচ্ছে...' : 'প্রিভিউ (Preview)',
                         style: AppTypography.uiBody(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -363,9 +569,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                     child: AppButton.secondary(
                       label: 'প্রত্যাখ্যান (Reject)',
                       isFullWidth: true,
-                      onPressed: () => ref
-                          .read(adminVerificationProvider.notifier)
-                          .reject(item.id),
+                      onPressed: () => _handleReject(context, item.id),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -373,9 +577,7 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                     child: AppButton.primary(
                       label: 'অনুমোদন (Approve)',
                       isFullWidth: true,
-                      onPressed: () => ref
-                          .read(adminVerificationProvider.notifier)
-                          .approve(item.id),
+                      onPressed: () => _handleApprove(context, item.id),
                     ),
                   ),
                 ],
@@ -444,6 +646,127 @@ class AdminVerificationQueueScreen extends ConsumerWidget {
                 color: AppColors.oxfordMuted,
               ),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(
+    BuildContext context,
+    WidgetRef ref,
+    String errorMessage,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.burgundy.withValues(alpha: 0.08),
+        border: const Border(
+          bottom: BorderSide(color: AppColors.burgundy, width: 1.0),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.burgundy,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'সার্ভার ত্রুটি / RLS সমস্যা',
+                  style: AppTypography.banglaBody(
+                    fontSize: 16,
+                    color: AppColors.burgundy,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  errorMessage,
+                  style: AppTypography.uiBody(
+                    fontSize: 12,
+                    color: AppColors.oxfordMuted,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          MinTapTarget(
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(adminVerificationProvider.notifier).refresh(),
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 16,
+                color: AppColors.brass,
+              ),
+              label: Text(
+                'পুনরায় চেষ্টা',
+                style: AppTypography.banglaBody(
+                  fontSize: 16,
+                  color: AppColors.brass,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView(
+    BuildContext context,
+    WidgetRef ref,
+    String errorMessage,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.burgundy.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: AppColors.burgundy,
+                size: 38,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'যাচাইকরণ তালিকা লোড করা যায়নি',
+              style: AppTypography.displayHeading(fontSize: 20),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              style: AppTypography.banglaBody(
+                fontSize: 16,
+                color: AppColors.oxfordMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            AppButton.primary(
+              label: 'পুনরায় চেষ্টা করুন (Retry)',
+              onPressed: () =>
+                  ref.read(adminVerificationProvider.notifier).refresh(),
             ),
           ],
         ),
