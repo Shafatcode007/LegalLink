@@ -8,7 +8,8 @@ import '../../domain/entities/advocate_verification_item.dart';
 /// Features:
 /// - Enforces 15-minute signed URL visibility per ADR-011 (no public storage URLs)
 /// - Visual expiration badge and refresh capability
-/// - Preview rendering with fallback and legal document inspection styling
+/// - Preview rendering with full-screen zoom dialog support (InteractiveViewer)
+/// - Breathing gavel loader while signed URL or image resolves
 /// - Rejection / Approval actions directly from preview modal
 class DocumentPreviewDialog extends StatefulWidget {
   const DocumentPreviewDialog({
@@ -89,6 +90,22 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
     }
   }
 
+  void _openFullScreenZoom() {
+    final url = _signedUrl;
+    if (url == null || url.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: AppColors.oxford.withValues(alpha: 0.90),
+      builder: (ctx) => _FullScreenDocumentZoomDialog(
+        title: _documentTitle,
+        fileName: _fileName,
+        url: url,
+        isImage: _isImage,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -100,7 +117,7 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
+        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 740),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -151,6 +168,19 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  // Full-screen zoom button
+                  MinTapTarget(
+                    minHeight: 40,
+                    minWidth: 40,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.fullscreen_rounded,
+                        color: AppColors.brass,
+                      ),
+                      tooltip: 'পূর্ণ পর্দা জুম ভিউ (Full-screen Zoom)',
+                      onPressed: _openFullScreenZoom,
                     ),
                   ),
                   MinTapTarget(
@@ -249,7 +279,14 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
                     border: Border.all(color: AppColors.stone),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: _buildPreviewContent(),
+                  child: _isRefreshing
+                      ? const Center(
+                          child: GavelBreathingRingLoader(
+                            message: 'নতুন সাইনড ইউআরএল তৈরি হচ্ছে...',
+                            size: 60,
+                          ),
+                        )
+                      : _buildPreviewContent(),
                 ),
               ),
               const SizedBox(height: 20),
@@ -320,21 +357,57 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
     }
 
     if (_isImage) {
-      return InteractiveViewer(
-        maxScale: 3.5,
-        child: Image.network(
-          url,
-          fit: BoxFit.contain,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return const Center(
-              child: GavelBreathingRingLoader(message: 'সনদপত্র লোড হচ্ছে...'),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return _buildDocumentFallbackView();
-          },
-        ),
+      return Stack(
+        children: [
+          InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: GavelBreathingRingLoader(
+                      message: 'সনদপত্র লোড হচ্ছে...',
+                      size: 64,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildDocumentFallbackView();
+                },
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.oxford.withValues(alpha: 0.70),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.zoom_in_rounded,
+                    color: AppColors.parchment,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'পিঞ্চ করে জুম করুন (Pinch to zoom)',
+                    style: AppTypography.caption(color: AppColors.parchment),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -401,8 +474,241 @@ class _DocumentPreviewDialogState extends State<DocumentPreviewDialog> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 12),
+            AppButton.ribbon(
+              label: 'পূর্ণ পর্দা প্রদর্শন (Open Fullscreen View)',
+              icon: const Icon(Icons.fullscreen_rounded, size: 16),
+              onPressed: _openFullScreenZoom,
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Full-screen dialog providing immersive zoom and pan inspection of verification documents.
+class _FullScreenDocumentZoomDialog extends StatefulWidget {
+  const _FullScreenDocumentZoomDialog({
+    required this.title,
+    required this.fileName,
+    required this.url,
+    required this.isImage,
+  });
+
+  final String title;
+  final String fileName;
+  final String url;
+  final bool isImage;
+
+  @override
+  State<_FullScreenDocumentZoomDialog> createState() =>
+      _FullScreenDocumentZoomDialogState();
+}
+
+class _FullScreenDocumentZoomDialogState
+    extends State<_FullScreenDocumentZoomDialog> {
+  final TransformationController _transformController =
+      TransformationController();
+
+  void _resetZoom() {
+    _transformController.value = Matrix4.identity();
+  }
+
+  void _zoomIn() {
+    final current = _transformController.value.getMaxScaleOnAxis();
+    if (current < 5.0) {
+      _transformController.value = Matrix4.copy(_transformController.value)
+        ..multiply(Matrix4.diagonal3Values(1.3, 1.3, 1.0));
+    }
+  }
+
+  void _zoomOut() {
+    final current = _transformController.value.getMaxScaleOnAxis();
+    if (current > 0.6) {
+      _transformController.value = Matrix4.copy(_transformController.value)
+        ..multiply(Matrix4.diagonal3Values(0.75, 0.75, 1.0));
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: AppColors.oxford,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Top Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: AppColors.oxford,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.security_rounded,
+                    color: AppColors.brass,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: AppTypography.displayHeading(
+                            fontSize: 16,
+                            color: AppColors.parchment,
+                          ),
+                        ),
+                        Text(
+                          widget.fileName,
+                          style: AppTypography.caption(
+                            color: AppColors.oxfordMuted,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Zoom controls
+                  MinTapTarget(
+                    minHeight: 40,
+                    minWidth: 40,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.zoom_out_rounded,
+                        color: AppColors.parchment,
+                      ),
+                      tooltip: 'জুম কমান',
+                      onPressed: _zoomOut,
+                    ),
+                  ),
+                  MinTapTarget(
+                    minHeight: 40,
+                    minWidth: 40,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.zoom_in_rounded,
+                        color: AppColors.parchment,
+                      ),
+                      tooltip: 'জুম বাড়ান',
+                      onPressed: _zoomIn,
+                    ),
+                  ),
+                  MinTapTarget(
+                    minHeight: 40,
+                    minWidth: 40,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.restart_alt_rounded,
+                        color: AppColors.parchment,
+                      ),
+                      tooltip: 'রিসেট',
+                      onPressed: _resetZoom,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  MinTapTarget(
+                    minHeight: 40,
+                    minWidth: 40,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.parchment,
+                      ),
+                      tooltip: 'বন্ধ করুন',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: AppColors.stone, height: 1),
+
+            // Zoomable canvas
+            Expanded(
+              child: Container(
+                color: const Color(0xFF0F1117),
+                child: Center(
+                  child: InteractiveViewer(
+                    transformationController: _transformController,
+                    minScale: 0.5,
+                    maxScale: 6.0,
+                    child: widget.isImage
+                        ? Image.network(
+                            widget.url,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: GavelBreathingRingLoader(
+                                  message: 'পূর্ণ রেজোলিউশন লোড হচ্ছে...',
+                                  size: 80,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildFallbackCard();
+                            },
+                          )
+                        : _buildFallbackCard(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackCard() {
+    return Container(
+      margin: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: AppColors.parchment,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.stone, width: 1.5),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.picture_as_pdf_rounded,
+            size: 64,
+            color: AppColors.burgundy,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.fileName,
+            style: AppTypography.displayHeading(fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'নিরাপদ ১৫-মিনিট সাইনড প্রিভিউ লিংক',
+            style: AppTypography.banglaBody(
+              fontSize: 14,
+              color: AppColors.oxfordMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.url,
+            style: AppTypography.caption(color: AppColors.stoneText),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
