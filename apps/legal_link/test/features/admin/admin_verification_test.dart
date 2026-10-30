@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_link/app/di.dart';
@@ -199,4 +200,182 @@ void main() {
       expect(state.errorMessage, isNull);
     });
   });
+
+  group('Error Propagation & RLS Handling (Role B2)', () {
+    test('AdminFailure hierarchy formats code and message', () {
+      const rls = AdminPermissionDeniedFailure();
+      expect(rls.code, '42501');
+      expect(rls.toString(), contains('42501'));
+
+      const net = AdminNetworkFailure();
+      expect(net.code, 'NETWORK_ERROR');
+
+      const server = AdminServerFailure(message: 'Query failed', code: '500');
+      expect(server.message, 'Query failed');
+    });
+
+    test('AdminVerificationNotifier captures AdminFailure and sets errorMessage without fallback', () async {
+      final failingRepo = _FailingAdminVerificationRepository(
+        error: const AdminPermissionDeniedFailure(),
+      );
+      final container = ProviderContainer(
+        overrides: createDiOverrides(adminVerificationRepository: failingRepo),
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(adminVerificationProvider.notifier);
+      await notifier.load();
+
+      final state = container.read(adminVerificationProvider);
+      expect(state.isLoading, isFalse);
+      expect(state.hasError, isTrue);
+      expect(state.errorMessage, contains('RLS Access Denied'));
+      // Ensure failure was NOT silently masked with mock items
+      expect(state.items, isEmpty);
+    });
+
+    testWidgets(
+      'AdminVerificationQueueScreen renders error view with Oxford Muted text and retry',
+      (tester) async {
+        final failingRepo = _FailingAdminVerificationRepository(
+          error: const AdminPermissionDeniedFailure(),
+        );
+        final container = ProviderContainer(
+          overrides: createDiOverrides(
+            adminVerificationRepository: failingRepo,
+          ),
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(adminVerificationProvider.notifier);
+        await notifier.load();
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: AdminVerificationQueueScreen()),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('যাচাইকরণ তালিকা লোড করা যায়নি'), findsOneWidget);
+        expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+        expect(find.text('পুনরায় চেষ্টা করুন (Retry)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'AdminVerificationQueueScreen renders error banner when items exist',
+      (tester) async {
+        final failingWithItemsRepo =
+            _FailingWithItemsAdminVerificationRepository(
+              error: const AdminServerFailure(message: 'Database sync error'),
+            );
+        final container = ProviderContainer(
+          overrides: createDiOverrides(
+            adminVerificationRepository: failingWithItemsRepo,
+          ),
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(adminVerificationProvider.notifier);
+        await notifier.load();
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: AdminVerificationQueueScreen()),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('সার্ভার ত্রুটি / RLS সমস্যা'), findsOneWidget);
+        expect(find.text('Database sync error'), findsOneWidget);
+        expect(find.text('পুনরায় চেষ্টা'), findsOneWidget);
+      },
+    );
+  });
+}
+
+class _FailingAdminVerificationRepository
+    implements AdminVerificationRepository {
+  _FailingAdminVerificationRepository({required this.error});
+
+  final Object error;
+
+  @override
+  List<AdvocateVerificationItem> getCachedAdvocates() => const [];
+
+  @override
+  Future<List<AdvocateVerificationItem>> getAdvocates() async {
+    throw error;
+  }
+
+  @override
+  Future<AdvocateVerificationItem?> getById(String id) async => null;
+
+  @override
+  Future<String?> getDocumentSignedUrl(
+    String storagePath, {
+    Duration expiresIn = const Duration(minutes: 15),
+  }) async => null;
+
+  @override
+  Future<void> updateStatus(
+    String id,
+    VerificationStatus status, {
+    String? reason,
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> refresh() async {
+    throw error;
+  }
+}
+
+class _FailingWithItemsAdminVerificationRepository
+    implements AdminVerificationRepository {
+  _FailingWithItemsAdminVerificationRepository({required this.error});
+
+  final Object error;
+
+  @override
+  List<AdvocateVerificationItem> getCachedAdvocates() => [
+    AdvocateVerificationItem(
+      id: 'adv-001',
+      fullName: 'Test Advocate',
+      barCouncilNo: 'BC-001',
+      status: VerificationStatus.pending,
+    ),
+  ];
+
+  @override
+  Future<List<AdvocateVerificationItem>> getAdvocates() async {
+    throw error;
+  }
+
+  @override
+  Future<AdvocateVerificationItem?> getById(String id) async => null;
+
+  @override
+  Future<String?> getDocumentSignedUrl(
+    String storagePath, {
+    Duration expiresIn = const Duration(minutes: 15),
+  }) async => null;
+
+  @override
+  Future<void> updateStatus(
+    String id,
+    VerificationStatus status, {
+    String? reason,
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> refresh() async {
+    throw error;
+  }
 }

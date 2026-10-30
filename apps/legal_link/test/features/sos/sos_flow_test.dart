@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_link/app/di.dart';
 import 'package:legal_link/features/sos/data/models/sos_request_dto.dart';
 import 'package:legal_link/features/sos/data/repositories/mock_sos_repository.dart';
-import 'package:legal_link/features/sos/domain/entities/sos_accept_result.dart';
 import 'package:legal_link/features/sos/domain/entities/sos_request_item.dart';
 import 'package:legal_link/features/sos/domain/repositories/sos_repository.dart';
 import 'package:legal_link/features/sos/presentation/notifiers/sos_form_notifier.dart';

@@ -1,0 +1,27 @@
+name: ai-local-server
+
+# Sprint 1 DoD: ai/local_server/hf_server.py boots on port 8080 and returns
+# valid JSON. Runs the unit tests, then a live smoke test on :8080.
+
+on:
+  push:
+    branches: [main]
+    paths: ['ai/**', 'scripts/smoke_hf_server.sh', '.github/workflows/ai-local-server.yml']
+  pull_request:
+    branches: [main]
+    paths: ['ai/**', 'scripts/smoke_hf_server.sh', '.github/workflows/ai-local-server.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  hf-server:
+    name: hf_server.py tests + :8080 smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unit tests
+        working-directory: ai/local_server
+        run: python3 -m unittest -v test_hf_server
+      - name: Boot on :8080 and check JSON
+        run: bash scripts/smoke_hf_server.sh

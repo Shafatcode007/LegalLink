@@ -28,10 +28,10 @@ class SupabaseSosRepository implements SosRepository {
   }
 
   @override
-  Future<SosAcceptResult> acceptSos(String sosId) async {
+  Future<CaseCreationResult?> acceptSos(String sosId) async {
     final result = await _dataSource.callAcceptSos(sosId);
 
-    // If accept succeeded, mark locally as accepted
+    // If accept succeeded, mark locally as accepted and return CaseCreationResult
     if (result is SosAcceptSuccess) {
       _cachedInbox = _cachedInbox.map((item) {
         if (item.id == sosId) {
@@ -42,12 +42,12 @@ class SupabaseSosRepository implements SosRepository {
         }
         return item;
       }).toList();
-    } else if (result is SosAcceptAlreadyTaken) {
-      // If lost the race, remove or mark as taken
-      _cachedInbox = _cachedInbox.where((item) => item.id != sosId).toList();
+      return result;
     }
 
-    return result;
+    // Backend returned null or race lost: remove from active inbox and return null
+    _cachedInbox = _cachedInbox.where((item) => item.id != sosId).toList();
+    return null;
   }
 
   @override
