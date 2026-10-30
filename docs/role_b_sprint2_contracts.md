@@ -8,6 +8,7 @@ This frontend uses the existing contracts in `docs/api_contracts.md`, `docs/data
 
 ```json
 {
+  "p_profile_id": "00000000-0000-4000-8000-000000000001",
   "p_bar_council_no": "BAR-42",
   "p_courts": ["Dhaka Court"],
   "p_districts": ["Dhaka"],
@@ -16,13 +17,17 @@ This frontend uses the existing contracts in `docs/api_contracts.md`, `docs/data
   "p_fee_min_bdt": "1000.00",
   "p_fee_max_bdt": "5000.00",
   "p_pin": "4826",
-  "p_nid_number": "1234567890"
+  "p_nid_number": "1234567890",
+  "p_sanad_url": "00000000-0000-4000-8000-000000000001/sanad.jpg",
+  "p_nid_url": "00000000-0000-4000-8000-000000000001/nid.jpg"
 }
 ```
 
 It returns the caller's `advocates` row. The frontend does not map `pin_hash` or PIN counters into its models or persist them. The raw PIN exists only in the form and HTTPS RPC request. For retries/re-applications against an existing row, `p_pin` is null and the existing PIN is retained; PIN changes need an owner-provided lifecycle RPC.
 
-`years_practice` and the existing free-form `availability` JSON column are updated on the caller's own row. This UI writes `availability.sos` as a boolean and preserves other availability keys. The optional profile photo is stored as an object path in the existing `profiles.avatar_url` column. Credential paths are persisted with `update_advocate_documents(p_sanad_url, p_nid_url)` after successful uploads. No signed URL is persisted.
+The current backend contract includes `p_profile_id`, `p_sanad_url` and `p_nid_url`. The profile ID is validated against the authenticated session before the request; the server continues to use `auth.uid()` as its authorization authority. Both credential paths are saved by the same verification RPC. The removed `update_advocate_documents` RPC is never called. Both `re_apply_cap_exceeded` and `max_verification_attempts_reached` map to the localized attempt-limit state.
+
+`years_practice` and the existing free-form `availability` JSON column are updated on the caller's own row. This UI writes `availability.sos` as a boolean and preserves other availability keys. The optional profile photo is stored as an object path in the existing `profiles.avatar_url` column. No signed URL is persisted.
 
 Storage objects stay under `{auth.uid()}/` in `sanad` (NID/Sanad) or `avatars` (profile photo). Each replacement gets a versioned name; uploads never request overwrite privileges absent from the policies. Reads, when needed, use 900-second signed URLs. TUS uploads acknowledge progress and retain the upload URL in memory for retry/resume; credentials and bearer tokens are not written to disk.
 
