@@ -47,10 +47,17 @@ jobs:
 
       - name: Start Supabase Local Engine
         run: |
+          docker network prune -f || true
           supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor || {
-            echo "Initial startup attempt failed, retrying after pause..."
-            sleep 5
-            supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor
+            echo "Initial startup attempt failed, cleaning Docker network and retrying..."
+            docker network prune -f || true
+            sleep 10
+            supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor || {
+              echo "Second startup attempt failed, waiting longer and retrying once more..."
+              docker network prune -f || true
+              sleep 20
+              supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor
+            }
           }
 
       - name: Save Docker images to cache
