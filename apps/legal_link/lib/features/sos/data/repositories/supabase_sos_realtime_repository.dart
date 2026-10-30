@@ -19,53 +19,8 @@ class SupabaseSosRealtimeRepository implements SosRealtimeRepository {
   Stream<SosChange> watchDistricts(Iterable<String> districts) {
     final wanted = sosDistricts(districts);
     late final StreamController<SosChange> controller;
-
-    void emit(SosChangeType type, PostgresChangePayload payload) {
-      try {
-        controller.add(
-          SosChange(type, SosRequestDto.fromJson(payload.newRecord)),
-        );
-      } catch (e, st) {
-        // A malformed row must not tear down the whole feed.
-        controller.addError(e, st);
-      }
-    }
-
-    RealtimeChannel open(String district) {
-      final filter = PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'district',
-        value: district,
-      );
-      return _client
-          .channel(sosChannelTopic(district))
-          .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
-            schema: 'public',
-            table: 'sos_requests',
-            filter: filter,
-            callback: (p) => emit(SosChangeType.inserted, p),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.update,
-            schema: 'public',
-            table: 'sos_requests',
-            filter: filter,
-            callback: (p) => emit(SosChangeType.updated, p),
-          )
-          .subscribe((status, error) {
-            // Fail loud (TRD P8): an empty feed must not hide a dead channel.
-            if (status == RealtimeSubscribeStatus.channelError ||
-                status == RealtimeSubscribeStatus.timedOut) {
-              controller.addError(
-                error ?? StateError('${sosChannelTopic(district)}: $status'),
-              );
-            }
-          });
-    }
-
     final registry = ChannelRegistry<RealtimeChannel>(
-      open: open,
+      open: (district) => _openChannel(district, controller),
       close: (channel) => unawaited(_client.removeChannel(channel)),
     );
     controller = StreamController<SosChange>(
@@ -73,5 +28,61 @@ class SupabaseSosRealtimeRepository implements SosRealtimeRepository {
       onCancel: registry.closeAll,
     );
     return controller.stream;
+  }
+
+  RealtimeChannel _openChannel(
+    String district,
+    StreamController<SosChange> sink,
+  ) {
+    final filter = PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'district',
+      value: district,
+    );
+    return _client
+        .channel(sosChannelTopic(district))
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'sos_requests',
+          filter: filter,
+          callback: (p) => _emit(sink, SosChangeType.inserted, p),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'sos_requests',
+          filter: filter,
+          callback: (p) => _emit(sink, SosChangeType.updated, p),
+        )
+        .subscribe((status, error) => _onStatus(sink, district, status, error));
+  }
+
+  static void _emit(
+    StreamController<SosChange> sink,
+    SosChangeType type,
+    PostgresChangePayload payload,
+  ) {
+    try {
+      sink.add(SosChange(type, SosRequestDto.fromJson(payload.newRecord)));
+    } catch (e, st) {
+      // A malformed row must not tear down the whole feed.
+      sink.addError(e, st);
+    }
+  }
+
+  /// Fail loud (TRD P8): an empty feed must not hide a dead channel.
+  static void _onStatus(
+    StreamController<SosChange> sink,
+    String district,
+    RealtimeSubscribeStatus status,
+    Object? error,
+  ) {
+    if (status == RealtimeSubscribeStatus.channelError ||
+        status == RealtimeSubscribeStatus.timedOut) {
+      sink.addError(
+        error ?? StateError('${sosChannelTopic(district)}: $status'),
+      );
+    }
   }
 }
