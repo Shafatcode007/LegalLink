@@ -70,3 +70,8 @@ jobs:
 
       - name: RLS Test Suite - Run 2 (Idempotency / Drift Guard)
         run: psql -v ON_ERROR_STOP=1 "$PG_URL" -f db/tests/rls_test.sql
+
+      # Sprint 1 (TRD §6.2): test OTP sign-in -> complete_signup -> refresh,
+      # then assert the new JWT carries app_metadata.role.
+      - name: Verify JWT role claim (app_metadata.role)
+        run: bash scripts/verify_jwt_role_claim.sh
