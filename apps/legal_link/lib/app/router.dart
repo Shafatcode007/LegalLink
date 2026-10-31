@@ -10,6 +10,8 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/onboarding/presentation/screens/minimal_profile_screen.dart';
 import '../features/onboarding/presentation/screens/advocate_registration_screen.dart';
 import '../features/sos/presentation/screens/sos_screen.dart';
+import '../features/sos/presentation/screens/advocate_sos_inbox_screen.dart';
+import '../features/admin/presentation/screens/admin_verification_queue_screen.dart';
 import 'client_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -52,6 +54,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 SosScreen(contactPhone: auth.user!.phone),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/sos/inbox',
+        builder: (context, state) => const AdvocateSosInboxScreen(),
+      ),
+      GoRoute(
+        path: '/admin/queue',
+        builder: (context, state) => const AdminVerificationQueueScreen(),
       ),
     ],
   );

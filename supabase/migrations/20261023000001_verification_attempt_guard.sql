@@ -111,23 +111,21 @@ end $$;
 revoke execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) from public;
 grant execute on function submit_verification(text, text[], text[], text[], text[], numeric, numeric, text) to authenticated;
 
--- admin_decide: re-apply cap pre-check (Task S2-R4) plus reject increments attempts.
--- Remove any legacy text-typed overload left by earlier migrations so only the
--- canonical verification_state signature remains (Iron Law #1).
+-- admin_decide: canonical verification_state signature only (Iron Law #1).
+-- Removes legacy text-typed overload; p_decision is strictly verification_state.
 drop function if exists admin_decide(uuid, text, text);
+drop function if exists admin_decide(uuid, verification_state, text);
+
 create or replace function admin_decide(
   p_advocate_id uuid,
-  p_decision text,
+  p_decision verification_state,
   p_rejection_reason text default null
 )
-returns advocates
+returns void
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
-declare
-  v_row advocates;
-  v_decision verification_state;
 begin
   -- Pre-check: re-apply cap enforcement (Task S2-R4)
   if exists (
@@ -142,28 +140,12 @@ begin
     raise exception 'forbidden: admin privileges required';
   end if;
 
-  begin
-    v_decision := p_decision::verification_state;
-  exception when others then
-    raise exception 'invalid_decision';
-  end;
-
-  if v_decision = 'rejected'
-     and (p_rejection_reason is null or btrim(p_rejection_reason) = '') then
-    raise exception 'rejection_reason_required';
-  end if;
-
   update advocates
-     set verification = v_decision,
-         verified_at = case when v_decision = 'verified' then now() else null end,
-         reverify_due_at = case when v_decision = 'verified'
-                                then now() + interval '365 days' else null end,
-         rejection_reason = case when v_decision = 'rejected'
-                                 then trim(p_rejection_reason) else null end,
-         attempts = case when v_decision = 'rejected' then attempts + 1 else attempts end,
+     set verification = p_decision,
+         rejection_reason = case when p_decision = 'rejected' then p_rejection_reason else null end,
+         attempts = case when p_decision = 'rejected' then coalesce(attempts, 0) + 1 else attempts end,
          updated_at = now()
-   where profile_id = p_advocate_id
-   returning * into v_row;
+    where profile_id = p_advocate_id;
 
   if not found then
     raise exception 'advocate_not_found';
@@ -172,12 +154,15 @@ begin
   insert into audit_logs (actor_id, actor_role, action, entity, entity_id, metadata)
   values (
     auth.uid(),
-    (select role from profiles where id = auth.uid()),
-    'admin.decide_verification', 'advocates', p_advocate_id,
-    jsonb_build_object('decision', p_decision, 'advocate_id', p_advocate_id)
+    'admin',
+    'advocate.decision',
+    'advocates',
+    p_advocate_id,
+    jsonb_build_object(
+      'decision', p_decision,
+      'rejection_reason', p_rejection_reason
+    )
   );
-
-  return v_row;
 end $$;
 
 revoke execute on function admin_decide(uuid, verification_state, text) from public;
