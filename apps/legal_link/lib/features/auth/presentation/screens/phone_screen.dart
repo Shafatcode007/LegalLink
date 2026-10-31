@@ -32,9 +32,7 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref
-        .read(authControllerProvider.notifier)
-        .sendOtp(_phone.text);
+    await ref.read(authControllerProvider.notifier).sendOtp(_phone.text);
   }
 
   @override
