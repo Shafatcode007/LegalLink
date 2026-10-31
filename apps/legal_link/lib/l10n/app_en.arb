@@ -96,6 +96,7 @@
   "invalidPhone": "Enter a valid Bangladeshi mobile number",
   "phonePrivacy": "Your number is used only for account verification.",
   "somethingWentWrong": "Something went wrong. Please try again.",
+  "smsSendFailed": "Failed to send SMS. Please try again.",
   "otpTitle": "Verify your phone",
   "otpSubtitle": "Enter the 6-digit verification code sent to",
   "otpLabel": "Verification code",

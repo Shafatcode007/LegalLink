@@ -28,7 +28,14 @@ class WidgetFakeAuthRepository implements AuthRepository {
       throw Exception('Invalid OTP');
     }
 
-    verifiedPhone = phone;
+    // Mirror SupabaseAuthRepository.toE164 normalization so the widget test
+    // validates end-to-end E.164 formatting (1712345678 → +8801712345678).
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    verifiedPhone = digits.startsWith('880')
+        ? '+$digits'
+        : digits.startsWith('0')
+        ? '+88$digits'
+        : '+880$digits';
   }
 
   @override

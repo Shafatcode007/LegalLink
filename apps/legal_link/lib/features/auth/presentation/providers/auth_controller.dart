@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/app_user.dart';
@@ -134,7 +135,9 @@ class AuthController extends Notifier<AuthState> {
       );
 
       return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugPrint('[Auth] sendOtp error: $error');
+      debugPrint('$stackTrace');
       state = state.copyWith(loading: false, error: error.toString());
 
       return false;
