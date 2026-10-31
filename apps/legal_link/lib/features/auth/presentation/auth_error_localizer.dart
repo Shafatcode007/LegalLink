@@ -22,6 +22,11 @@ String localizedAuthError(AppLocalizations l10n, String? error) {
     case 'Unable to complete profile':
       return l10n.profileCompletionError;
 
+    case 'Failed to send OTP':
+    case 'SMS provider not configured':
+    case 'Failed to send verification code':
+      return l10n.smsSendFailed;
+
     default:
       return l10n.somethingWentWrong;
   }
