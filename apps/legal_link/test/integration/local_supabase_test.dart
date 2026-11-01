@@ -72,7 +72,9 @@ Future<void> registrationFlow() async {
       .submit(user.id, application);
   final row = await client
       .from('advocates')
-      .select('nid_number,verification,years_practice,sanad_url,nid_url')
+      .select(
+        'nid_number,verification,years_practice,sanad_url,nid_url,attempts',
+      )
       .eq('profile_id', user.id)
       .single();
   expect(row['nid_number'], '1234567890');
@@ -80,6 +82,25 @@ Future<void> registrationFlow() async {
   expect(row['years_practice'], 5);
   expect(row['sanad_url'], paths[0]);
   expect(row['nid_url'], paths[1]);
+  expect(row['attempts'], 0);
+  await verifyReapplication(client, user.id, application);
+}
+
+Future<void> verifyReapplication(
+  SupabaseClient client,
+  String owner,
+  AdvocateRegistration application,
+) async {
+  await SupabaseAdvocateRegistrationRepository(client)
+      .submit(owner, application);
+  final row = await client
+      .from('advocates')
+      .select('attempts,sanad_url,nid_url')
+      .eq('profile_id', owner)
+      .single();
+  expect(row['attempts'], 0);
+  expect(row['sanad_url'], application.sanadReference);
+  expect(row['nid_url'], application.nidReference);
 }
 
 Future<List<String>> uploadPhotos(SupabaseClient client, String owner) async {

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "android-adb": {
+      "command": "npx",
+      "args": ["-y", "@us-all/android-mcp"],
+      "env": {
+        "ANDROID_HOME": "C:\\Users\\atauz\\AppData\\Local\\Android\\sdk",
+        "PATH": "C:\\Users\\atauz\\AppData\\Local\\Android\\sdk\\platform-tools;%PATH%"
+      }
+    },
+    "android-studio-ide": {
+      "command": "npx",
+      "args": ["-y", "@jetbrains/mcp-proxy"],
+      "env": {
+        "JETBRAINS_IDE_PORT": "63342"
+      }
+    }
+  }
+}

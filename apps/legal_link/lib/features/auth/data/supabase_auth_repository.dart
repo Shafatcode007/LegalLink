@@ -1,8 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/app_user.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/user_role.dart';
+
+String toE164(String input) {
+  final digits = input.replaceAll(RegExp(r'\D'), '');
+  if (digits.startsWith('880')) return '+$digits';
+  if (digits.startsWith('0')) return '+88$digits';
+  return '+880$digits';
+}
 
 class SupabaseAuthRepository implements AuthRepository, AuthSessionChanges {
   SupabaseAuthRepository(this._client);
@@ -14,8 +22,11 @@ class SupabaseAuthRepository implements AuthRepository, AuthSessionChanges {
       .map((_) {});
 
   @override
-  Future<void> sendOtp(String phone) =>
-      _client.auth.signInWithOtp(phone: phone);
+  Future<void> sendOtp(String phone) async {
+    final e164 = toE164(phone);
+    debugPrint('[Auth] sendOtp E.164: $e164');
+    await _client.auth.signInWithOtp(phone: e164);
+  }
 
   @override
   Future<void> verifyOtp({required String phone, required String otp}) async {

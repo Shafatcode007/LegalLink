@@ -17,16 +17,9 @@ class SupabaseAdvocateRegistrationRepository
       }
       await _client.rpc(
         'submit_verification',
-        params: _parameters(registration, existing == null),
+        params: _parameters(userId, registration, existing == null),
       );
       await _savePractice(userId, registration, existing);
-      await _client.rpc(
-        'update_advocate_documents',
-        params: {
-          'p_sanad_url': registration.sanadReference,
-          'p_nid_url': registration.nidReference,
-        },
-      );
       if (registration.avatarReference != null) {
         await _client
             .from('profiles')
@@ -60,7 +53,12 @@ class SupabaseAdvocateRegistrationRepository
       .eq('profile_id', id)
       .maybeSingle();
 
-  Map<String, dynamic> _parameters(AdvocateRegistration value, bool isNew) => {
+  Map<String, dynamic> _parameters(
+    String userId,
+    AdvocateRegistration value,
+    bool isNew,
+  ) => {
+    'p_profile_id': userId,
     'p_bar_council_no': value.barCouncilNumber,
     'p_courts': value.courts,
     'p_districts': value.districts,
@@ -75,6 +73,8 @@ class SupabaseAdvocateRegistrationRepository
     'p_fee_max_bdt': '${value.feeMax}.00',
     'p_pin': isNew ? value.pin : null,
     'p_nid_number': value.nid,
+    'p_sanad_url': value.sanadReference,
+    'p_nid_url': value.nidReference,
   };
 
   Future<void> _savePractice(
@@ -96,7 +96,8 @@ class SupabaseAdvocateRegistrationRepository
   }
 
   RegistrationFailure _failure(String message) {
-    if (message.contains('max_verification_attempts_reached')) {
+    if (message.contains('max_verification_attempts_reached') ||
+        message.contains('re_apply_cap_exceeded')) {
       return RegistrationFailure.attemptsExhausted;
     }
     if (message.contains('pin_guard')) return RegistrationFailure.pinProtected;

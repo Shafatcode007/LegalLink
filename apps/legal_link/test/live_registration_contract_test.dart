@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_link/features/onboarding/data/supabase_advocate_registration_repository.dart';
 import 'package:legal_link/features/onboarding/domain/advocate_registration.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'support/supabase_fixture.dart';
 
@@ -38,6 +39,9 @@ void main() {
         (r) => r.url.path.endsWith('/submit_verification'),
       );
       final body = jsonDecode(rpc.body) as Map<String, dynamic>;
+      expect(body, containsPair('p_profile_id', 'user-id'));
+      expect(body, containsPair('p_sanad_url', 'user-id/sanad.jpg'));
+      expect(body, containsPair('p_nid_url', 'user-id/nid.jpg'));
       expect(body, containsPair('p_nid_number', '1234567890'));
       expect(body, containsPair('p_pin', '4826'));
       expect(body, containsPair('p_fee_min_bdt', '1000.00'));
@@ -52,10 +56,50 @@ void main() {
         fixture.requests.any(
           (r) => r.url.path.endsWith('/update_advocate_documents'),
         ),
-        true,
+        false,
       );
     },
   );
+
+  test('registration works without the removed document RPC', () async {
+    final fixture = SupabaseFixture((request) async {
+      if (request.url.path.endsWith('/update_advocate_documents')) {
+        throw const PostgrestException(
+          message: 'RPC not found',
+          code: 'PGRST202',
+        );
+      }
+      return request.method == 'GET' ? [] : {'profile_id': 'user-id'};
+    });
+    addTearDown(fixture.client.dispose);
+    await fixture.signIn();
+    await expectLater(
+      SupabaseAdvocateRegistrationRepository(fixture.client)
+          .submit('user-id', application()),
+      completes,
+    );
+  });
+
+  for (final error in [
+    're_apply_cap_exceeded',
+    'max_verification_attempts_reached',
+  ]) {
+    test('registration localizes the backend cap $error', () async {
+      final fixture = SupabaseFixture((request) async {
+        if (request.url.path.endsWith('/submit_verification')) {
+          throw PostgrestException(message: error, code: 'P0001');
+        }
+        return [];
+      });
+      addTearDown(fixture.client.dispose);
+      await fixture.signIn();
+      await expectLater(
+        SupabaseAdvocateRegistrationRepository(fixture.client)
+            .submit('user-id', application()),
+        throwsA(RegistrationFailure.attemptsExhausted),
+      );
+    });
+  }
 
   test(
     'registration rejects a different account before making a request',

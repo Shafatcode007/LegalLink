@@ -1,0 +1,33 @@
+name: auth-jwt-claim
+
+# Sprint 1 (TRD §6.2, §8.2): after onboarding, the access token must carry
+# app_metadata.role. Starts only what the check needs (db, auth, kong,
+# rest) so the RLS drift-guard job keeps its DB-only fast path.
+
+on:
+  push:
+    branches: [main]
+    paths: ['db/migrations/**', 'supabase/**', 'scripts/verify_jwt_role_claim.sh', '.github/workflows/auth-jwt-claim.yml']
+  pull_request:
+    branches: [main]
+    paths: ['db/migrations/**', 'supabase/**', 'scripts/verify_jwt_role_claim.sh', '.github/workflows/auth-jwt-claim.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  jwt-role-claim:
+    name: JWT carries app_metadata.role
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Start Supabase (db, auth, kong, rest)
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Sign up with test OTP, complete_signup, check the refreshed JWT
+        run: bash scripts/verify_jwt_role_claim.sh

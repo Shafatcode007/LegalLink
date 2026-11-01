@@ -2,6 +2,7 @@
 # Enforces the Flutter layer rules from TRD §8.1:
 #   - lib/**/domain/**       must not import presentation/, data/, flutter, supabase_flutter, hive
 #   - lib/**/presentation/** must not import data/
+#   - lib/**/data/**         must not import presentation/  (presentation -> domain <- data)
 #   - lib/app/di.dart is the only composition-root exemption (it lives outside both layers)
 set -euo pipefail
 
@@ -20,6 +21,7 @@ imports_in() {
 
 domain_dirs=$(find "$LIB" -type d -name domain)
 presentation_dirs=$(find "$LIB" -type d -name presentation)
+data_dirs=$(find "$LIB" -type d -name data)
 
 if [ -n "$domain_dirs" ]; then
   # shellcheck disable=SC2086
@@ -31,6 +33,12 @@ if [ -n "$presentation_dirs" ]; then
   # shellcheck disable=SC2086
   hits=$(imports_in $presentation_dirs | grep -E "/data/" || true)
   [ -n "$hits" ] && report "presentation/ must not import data/ (bind implementations in lib/app/di.dart):" "$hits"
+fi
+
+if [ -n "$data_dirs" ]; then
+  # shellcheck disable=SC2086
+  hits=$(imports_in $data_dirs | grep -E "/presentation/" || true)
+  [ -n "$hits" ] && report "data/ must not import presentation/ (data depends only on domain/):" "$hits"
 fi
 
 if [ "$fail" -ne 0 ]; then
