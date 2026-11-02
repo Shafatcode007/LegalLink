@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/app_user.dart';
@@ -24,14 +23,17 @@ class SupabaseAuthRepository implements AuthRepository, AuthSessionChanges {
   @override
   Future<void> sendOtp(String phone) async {
     final e164 = toE164(phone);
-    debugPrint('[Auth] sendOtp E.164: $e164');
     await _client.auth.signInWithOtp(phone: e164);
   }
 
   @override
   Future<void> verifyOtp({required String phone, required String otp}) async {
     try {
-      await _client.auth.verifyOTP(phone: phone, token: otp, type: OtpType.sms);
+      await _client.auth.verifyOTP(
+        phone: toE164(phone),
+        token: otp,
+        type: OtpType.sms,
+      );
     } on AuthException catch (error) {
       if (error.code == 'otp_expired' || error.code == 'otp_disabled') {
         throw const AuthFailure('Invalid OTP');
