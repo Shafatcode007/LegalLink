@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:legal_link/features/auth/data/supabase_auth_repository.dart';
-import 'package:legal_link/features/auth/domain/repositories/auth_repository.dart';
 import 'package:legal_link/features/auth/domain/user_role.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
