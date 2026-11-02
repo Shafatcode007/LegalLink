@@ -29,6 +29,8 @@ The current backend contract includes `p_profile_id`, `p_sanad_url` and `p_nid_u
 
 `years_practice` and the existing free-form `availability` JSON column are updated on the caller's own row. This UI writes `availability.sos` as a boolean and preserves other availability keys. The optional profile photo is stored as an object path in the existing `profiles.avatar_url` column. No signed URL is persisted.
 
+Advocate Home reads the caller's saved application and shows pending, rejected (with feedback), or verified status. Pending/rejected applications can be edited and resubmitted while `attempts < 3`; verified applications have no resubmit action. Home refreshes on demand, on app resume, and every 30 seconds while an application is unverified. Status-read failures offer retry instead of presenting an empty registration. Re-applications restore the existing fields and document paths, omit the PIN fields, and keep `p_pin` null. The registration screen keeps a Home button outside the scrollable content, including its completion state. No PIN security columns are selected for this read.
+
 Storage objects stay under `{auth.uid()}/` in `sanad` (NID/Sanad) or `avatars` (profile photo). Each replacement gets a versioned name; uploads never request overwrite privileges absent from the policies. Reads, when needed, use 900-second signed URLs. TUS uploads acknowledge progress and retain the upload URL in memory for retry/resume; credentials and bearer tokens are not written to disk.
 
 ## Client SOS

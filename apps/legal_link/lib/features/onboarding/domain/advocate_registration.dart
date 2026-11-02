@@ -1,3 +1,5 @@
+import 'advocate_application.dart';
+
 enum Specialization { criminal, bail, family, property, labor, womenAndChild }
 
 class AdvocateRegistration {
@@ -63,9 +65,11 @@ enum RegistrationFailure implements Exception {
   forbidden,
   attemptsExhausted,
   pinProtected,
+  alreadyVerified,
   unavailable,
 }
 
 abstract interface class AdvocateRegistrationRepository {
+  Future<AdvocateApplication?> getApplication(String userId);
   Future<void> submit(String userId, AdvocateRegistration registration);
 }

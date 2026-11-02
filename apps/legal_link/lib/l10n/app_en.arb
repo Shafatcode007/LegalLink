@@ -148,6 +148,7 @@
   "registrationSubmitLive": "Submit for verification",
   "registrationSubmitted": "Application submitted",
   "registrationSubmittedBody": "Your application is pending review. A verified badge appears only after approval. Expected review time: 48 hours.",
+  "backToHome": "Back to Home",
   "registrationAttemptLimit": "You have reached the re-application limit. Contact support before submitting again.",
   "registrationPinProtected": "Your existing approval PIN cannot be changed here. Please use the PIN change flow or contact support.",
   "uploadLiveReady": "Upload complete.",
@@ -180,5 +181,21 @@
       }
     }
   },
-  "sosRestoreError": "Could not check for an existing SOS. Retry before starting a new request."
+  "sosRestoreError": "Could not check for an existing SOS. Retry before starting a new request.",
+  "registrationStatusTitle": "Advocate application",
+  "registrationNotSubmitted": "Registration not submitted",
+  "registrationNotSubmittedBody": "Complete your advocate registration to apply for verification.",
+  "registrationPending": "Waiting for review",
+  "registrationPendingBody": "Your application is awaiting review, usually within 48 hours. You can edit your details and resubmit before approval.",
+  "registrationVerified": "Verified advocate",
+  "registrationVerifiedBody": "Your application has been approved. You do not need to submit your registration again.",
+  "registrationRejected": "Changes required",
+  "registrationRejectedBody": "Review the feedback, correct your details and resubmit your application.",
+  "registrationRejectionReason": "Review feedback: {reason}",
+  "@registrationRejectionReason": {"placeholders": {"reason": {"type": "String"}}},
+  "registrationEditResubmit": "Edit and resubmit",
+  "registrationResubmit": "Resubmit for verification",
+  "registrationStatusError": "Could not load your application status. Please retry before submitting.",
+  "registrationExistingPin": "Your existing approval PIN will be kept. You do not need to enter it again.",
+  "previouslyUploadedPhoto": "Previously uploaded photo"
 }

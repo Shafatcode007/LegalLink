@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_link/features/onboarding/domain/advocate_registration.dart';
+import 'package:legal_link/features/onboarding/domain/advocate_application.dart';
 import 'package:legal_link/features/onboarding/domain/credential_upload.dart';
 import 'package:legal_link/features/onboarding/domain/onboarding_providers.dart';
 import 'package:legal_link/features/onboarding/presentation/screens/advocate_registration_screen.dart';
@@ -43,9 +44,23 @@ class TestUpload implements CredentialUploadRepository {
 
 class TestRegistration implements AdvocateRegistrationRepository {
   AdvocateRegistration? registration;
+  AdvocateApplication? savedApplication;
+  bool failRead = false;
+  int submitCalls = 0;
+  @override
+  Future<AdvocateApplication?> getApplication(String userId) async {
+    if (failRead) throw RegistrationFailure.unavailable;
+    return savedApplication;
+  }
+
   @override
   Future<void> submit(String userId, AdvocateRegistration registration) async {
     this.registration = registration;
+    submitCalls++;
+    savedApplication = AdvocateApplication(
+      registration: registration,
+      verification: AdvocateVerification.pending,
+    );
   }
 }
 
@@ -96,6 +111,11 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            advocateRegistrationRepositoryProvider.overrideWithValue(
+              TestRegistration(),
+            ),
+          ],
           child: localized(
             const AdvocateRegistrationScreen(userId: 'advocate'),
           ),

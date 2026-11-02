@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:legal_link/shared/shared.dart';
 
 import '../../../../core/app_mode.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../domain/advocate_registration.dart';
+import '../../domain/advocate_application.dart';
 import '../../domain/credential_upload.dart';
 import '../../domain/onboarding_providers.dart';
 import '../widgets/credential_upload_field.dart';
@@ -42,6 +44,70 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
   bool _saving = false, _submitted = false, _showErrors = false;
   bool _available = true;
   RegistrationFailure? _failure;
+  AdvocateApplication? _existing;
+  bool _loading = true, _loadFailed = false;
+
+  bool get _blocked => _existing != null && !_existing!.canResubmit;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApplication();
+  }
+
+  Future<void> _loadApplication() async {
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+    });
+    try {
+      final app = await ref
+          .read(advocateRegistrationRepositoryProvider)
+          .getApplication(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _existing = app;
+        if (app != null) _prefill(app.registration);
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadFailed = true;
+        });
+      }
+    }
+  }
+
+  void _prefill(AdvocateRegistration value) {
+    final values = {
+      'nid': value.nid,
+      'bar': value.barCouncilNumber,
+      'courts': value.courts.join(', '),
+      'districts': value.districts.join(', '),
+      'years': '${value.yearsPractice}',
+      'min': '${value.feeMin}',
+      'max': '${value.feeMax}',
+    };
+    for (final entry in values.entries) {
+      _fields[entry.key]!.text = entry.value;
+    }
+    _specializations
+      ..clear()
+      ..addAll(value.specializations);
+    _languages
+      ..clear()
+      ..addAll(value.languages);
+    _available = value.availableForSos;
+    if (value.sanadReference.isNotEmpty) {
+      _documents[CredentialKind.sanad] = value.sanadReference;
+    }
+    if (value.nidReference.isNotEmpty) {
+      _documents[CredentialKind.nid] = value.nidReference;
+    }
+    _documents[CredentialKind.avatar] = value.avatarReference;
+  }
 
   bool get _live => ref.read(appModeProvider) == AppMode.live;
   String _text(String key) => _fields[key]!.text.trim();
@@ -108,12 +174,19 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
       await ref
           .read(advocateRegistrationRepositoryProvider)
           .submit(widget.userId, _application());
+      if (!mounted) return;
+      ref.invalidate(advocateApplicationProvider(widget.userId));
       if (mounted) {
         _fields['pin']!.clear();
         _fields['confirm']!.clear();
         setState(() => _submitted = true);
       }
     } catch (error) {
+      if (error == RegistrationFailure.alreadyVerified && mounted) {
+        await _loadApplication();
+        ref.invalidate(advocateApplicationProvider(widget.userId));
+        return;
+      }
       if (mounted) {
         setState(
           () => _failure = error is RegistrationFailure
@@ -131,13 +204,30 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.advocateRegistrationTitle)),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          child: SizedBox(
+            height: 48,
+            child: AppButton(
+              label: l10n.backToHome,
+              icon: const Icon(Icons.home_outlined),
+              isFullWidth: true,
+              variant: _submitted
+                  ? ButtonVariant.primary
+                  : ButtonVariant.secondary,
+              onPressed: _saving ? null : () => context.go('/home'),
+            ),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
-              child: _submitted ? _completion(l10n) : _form(l10n),
+              child: _content(l10n),
             ),
           ),
         ),
@@ -145,11 +235,76 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
     );
   }
 
+  Widget _content(AppLocalizations l10n) {
+    if (_loading) {
+      return const LegalSkeletonLoader(
+        width: double.infinity,
+        height: 160,
+        borderRadius: 16,
+      );
+    }
+    if (_loadFailed) {
+      return Column(
+        children: [
+          Text(l10n.registrationStatusError),
+          const SizedBox(height: 16),
+          AppButton.primary(
+            label: l10n.refreshAction,
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadApplication,
+          ),
+        ],
+      );
+    }
+    if (_submitted) return _completion(l10n);
+    if (_blocked) return _blockedContent(l10n);
+    return _form(l10n);
+  }
+
+  Widget _blockedContent(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        _existing!.isVerified ? Icons.verified : Icons.info_outline,
+        color: _existing!.isVerified
+            ? AppColors.verifiedForest
+            : AppColors.brass,
+        size: 64,
+      ),
+      const SizedBox(height: 24),
+      Text(
+        _existing!.isVerified
+            ? l10n.registrationVerified
+            : _existing!.verification == AdvocateVerification.rejected
+            ? l10n.registrationRejected
+            : l10n.registrationPending,
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 16),
+      Text(
+        _existing!.isVerified
+            ? l10n.registrationVerifiedBody
+            : l10n.registrationAttemptLimit,
+      ),
+    ],
+  );
+
   Widget _form(AppLocalizations l10n) => Form(
     key: _formKey,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_existing != null) ...[
+          _feedback(
+            _existing!.verification == AdvocateVerification.rejected
+                ? l10n.registrationRejectedBody
+                : l10n.registrationPendingBody,
+          ),
+          if (_existing!.rejectionReason case final String reason
+              when reason.trim().isNotEmpty)
+            _feedback(l10n.registrationRejectionReason(reason)),
+          const SizedBox(height: 24),
+        ],
         Text(l10n.advocateRegistrationSubtitle),
         const SizedBox(height: 16),
         _feedback(
@@ -158,7 +313,10 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
         const SizedBox(height: 40),
         ..._identity(l10n),
         ..._practice(l10n),
-        ..._pinFields(l10n),
+        if (_existing == null)
+          ..._pinFields(l10n)
+        else
+          _feedback(l10n.registrationExistingPin),
         const SizedBox(height: 40),
         ..._documentFields(l10n),
         if (_failure != null) _feedback(_failureText(l10n), error: true),
@@ -333,6 +491,7 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
     kind: kind,
     label: label,
     enabled: !_saving,
+    initialReference: _documents[kind],
     onChanged: (reference, busy) => setState(() {
       _documents[kind] = reference;
       busy ? _busyDocuments.add(kind) : _busyDocuments.remove(kind);
@@ -340,7 +499,11 @@ class _RegistrationState extends ConsumerState<AdvocateRegistrationScreen> {
   );
 
   Widget _submitButton(AppLocalizations l10n) => AppButton.primary(
-    label: _live ? l10n.registrationSubmitLive : l10n.submitRegistration,
+    label: !_live
+        ? l10n.submitRegistration
+        : _existing == null
+        ? l10n.registrationSubmitLive
+        : l10n.registrationResubmit,
     icon: const Icon(Icons.assignment_turned_in_outlined),
     onPressed: _saving || _busyDocuments.isNotEmpty ? null : _submit,
     isLoading: _saving,
