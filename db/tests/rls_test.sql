@@ -596,5 +596,124 @@ begin;
   end $$;
 rollback;
 
+-- ---------------------------------------------------------------------
+-- D-18: sos_requests is published to Supabase Realtime (sos:{district}, TRD §6.5)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  do $$
+  begin
+    if not exists (select 1 from pg_publication_tables
+                    where pubname = 'supabase_realtime'
+                      and schemaname = 'public' and tablename = 'sos_requests') then
+      raise exception 'D-18 FAILED: sos_requests is not in the supabase_realtime publication';
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-19: Case parties can read a case document (signed URLs need SELECT, ADR-011)
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('d1900000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'doc-client@test.local', 'x', '+8801700000960'),
+         ('d1900000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'doc-advocate@test.local', 'x', '+8801700000961'),
+         ('d1900000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'doc-other-client@test.local', 'x', '+8801700000962'),
+         ('d1900000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'doc-other-advocate@test.local', 'x', '+8801700000963')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('d1900000-0000-0000-0000-000000000001', 'client', '+8801700000960', 'bn'),
+         ('d1900000-0000-0000-0000-000000000002', 'advocate', '+8801700000961', 'bn'),
+         ('d1900000-0000-0000-0000-000000000003', 'client', '+8801700000962', 'bn'),
+         ('d1900000-0000-0000-0000-000000000004', 'advocate', '+8801700000963', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('d1911111-1111-1111-1111-111111111101', 'd1900000-0000-0000-0000-000000000001',
+          'd1900000-0000-0000-0000-000000000002', 'bail', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into storage.objects (bucket_id, name, owner)
+  values ('documents', 'd1911111-1111-1111-1111-111111111101/doc-1/fir.jpg',
+          'd1900000-0000-0000-0000-000000000001');
+
+  reset role;
+  select set_config('request.jwt.claims', json_build_object('sub', 'd1900000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+  set role authenticated;
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from storage.objects
+     where bucket_id = 'documents' and name like 'd1911111-1111-1111-1111-111111111101/%';
+    if v_rows <> 1 then
+      raise exception 'D-19 FAILED: case client cannot read its case document (% rows)', v_rows;
+    end if;
+  end $$;
+
+  reset role;
+  select set_config('request.jwt.claims', json_build_object('sub', 'd1900000-0000-0000-0000-000000000002', 'role', 'authenticated')::text, true);
+  set role authenticated;
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from storage.objects
+     where bucket_id = 'documents' and name like 'd1911111-1111-1111-1111-111111111101/%';
+    if v_rows <> 1 then
+      raise exception 'D-19 FAILED: assigned advocate cannot read the case document (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
+-- ---------------------------------------------------------------------
+-- D-20: Non-parties cannot read a case document
+-- ---------------------------------------------------------------------
+begin;
+  reset role;
+  insert into auth.users (id, aud, role, email, encrypted_password, phone)
+  values ('d1900000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'doc-client@test.local', 'x', '+8801700000960'),
+         ('d1900000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'doc-advocate@test.local', 'x', '+8801700000961'),
+         ('d1900000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'doc-other-client@test.local', 'x', '+8801700000962'),
+         ('d1900000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'doc-other-advocate@test.local', 'x', '+8801700000963')
+  on conflict (id) do nothing;
+  insert into profiles (id, role, phone, language)
+  values ('d1900000-0000-0000-0000-000000000001', 'client', '+8801700000960', 'bn'),
+         ('d1900000-0000-0000-0000-000000000002', 'advocate', '+8801700000961', 'bn'),
+         ('d1900000-0000-0000-0000-000000000003', 'client', '+8801700000962', 'bn'),
+         ('d1900000-0000-0000-0000-000000000004', 'advocate', '+8801700000963', 'bn')
+  on conflict (id) do nothing;
+  insert into cases (id, client_id, advocate_id, case_type, court, district, state)
+  values ('d1911111-1111-1111-1111-111111111101', 'd1900000-0000-0000-0000-000000000001',
+          'd1900000-0000-0000-0000-000000000002', 'bail', 'Dhaka Court', 'Dhaka', 'active')
+  on conflict (id) do nothing;
+  insert into storage.objects (bucket_id, name, owner)
+  values ('documents', 'd1911111-1111-1111-1111-111111111101/doc-1/fir.jpg',
+          'd1900000-0000-0000-0000-000000000001');
+
+  reset role;
+  select set_config('request.jwt.claims', json_build_object('sub', 'd1900000-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+  set role authenticated;
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from storage.objects
+     where bucket_id = 'documents' and name like 'd1911111-1111-1111-1111-111111111101/%';
+    if v_rows <> 0 then
+      raise exception 'D-20 FAILED: another client can read the case document (% rows)', v_rows;
+    end if;
+  end $$;
+
+  reset role;
+  select set_config('request.jwt.claims', json_build_object('sub', 'd1900000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);
+  set role authenticated;
+  do $$
+  declare v_rows int;
+  begin
+    select count(*) into v_rows from storage.objects
+     where bucket_id = 'documents' and name like 'd1911111-1111-1111-1111-111111111101/%';
+    if v_rows <> 0 then
+      raise exception 'D-20 FAILED: an unassigned advocate can read the case document (% rows)', v_rows;
+    end if;
+  end $$;
+rollback;
+
 reset role;
 select '*** ALL HITL RLS TESTS PASSED ***' as result;
