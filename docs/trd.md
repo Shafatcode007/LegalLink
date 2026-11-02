@@ -124,7 +124,7 @@ This TRD converts the 8-feature MVP defined in the PRD into a buildable technica
 |---|---|---|---|---|
 | C1 | Flutter Web | Untrusted | Responsive UI, offline cache, sync engine | Degraded UI only |
 | C2 | Flutter Android | Untrusted | Same + push, camera, voice input | Degraded UI only |
-| C3 | Cloudflare Worker | Semi-trusted (holds no JWT secret, only AI key) | PII redaction, rate limits, AI cache, PDF | AI features degrade; core flows unaffected |
+| C3 | Cloudflare Worker | Semi-trusted (holds no JWT secret, only AI key) | PII redaction, rate limits, AI cache, PDF, **Phase 2: payment gateway webhooks (SSLCommerz / bKash Merchant API) and ledger split-routing** | AI features degrade; core flows unaffected |
 | C4 | PostgREST | Trusted (inside Supabase) | Auto-generated REST over tables/views/RPC | Total outage of data access |
 | C5 | Postgres + RLS | Trusted - the security boundary | Data, constraints, RLS, triggers, pgvector | Total outage; highest criticality |
 | C6 | Supabase Auth | Trusted | OTP issuance/verification, JWT minting, refresh | Login outage; queued client sessions survive 7-day refresh |
@@ -327,6 +327,8 @@ create type invoice_state      as enum ('draft','sent','partially_paid','paid','
 create type payment_method     as enum ('bkash','nagad','cash','bank');
 create type doc_status         as enum ('uploaded','needs_review','approved','rejected');
 create type ai_feature         as enum ('triage','summary','chatbot');
+create type subscription_tier  as enum ('free_pilot', 'junior_basic', 'chamber_premium');
+create type subscription_state as enum ('active', 'past_due', 'canceled', 'trialing');
 ```
 
 ### 5.3 Entity Relationship Overview
@@ -389,11 +391,16 @@ create table advocates (
   verified_at       timestamptz,
   reverify_due_at   timestamptz,
   availability      jsonb not null default '{}'::jsonb,
+  subscription_tier subscription_tier not null default 'free_pilot',
+  subscription_state subscription_state not null default 'trialing',
+  subscription_expires_at timestamptz,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now(),
   check (fee_max_bdt is null or fee_min_bdt is null or fee_max_bdt >= fee_min_bdt)
 );
 ```
+**Subscription tracking (Phase 2 commercial model):** During Phase 1 (MVP), all verified advocates default to `subscription_tier = 'free_pilot'` with `subscription_state = 'trialing'` and full feature access at 0 BDT. These columns are present in the schema from day 1 so the upgrade path to `junior_basic` (500 BDT/mo) and `chamber_premium` (3,000–5,000 BDT/mo) in Phase 2 requires no schema refactoring. `subscription_expires_at` gates paid-tier access; a lapsed subscription returns the advocate to `free_pilot` with no loss of case data or client access.
+
 **sos_requests** - emergency intake
 ```sql
 create table sos_requests (
@@ -871,7 +878,9 @@ create policy invoice_items_party on invoice_items for select
 create policy invoice_items_advocate_write on invoice_items for all
   using (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
                  and i.advocate_id = auth.uid()))
-  with check (true);
+  with check (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
+                      and i.advocate_id = auth.uid()
+                      and i.state in ('draft', 'sent')));
 create policy payments_party on payments for all
   using (exists (select 1 from invoices i where i.id = payments.invoice_id
                  and (i.advocate_id = auth.uid() or i.client_id = auth.uid())) or is_admin())
@@ -890,7 +899,8 @@ create policy checklist_client_read on checklist_items for select
 create policy checklist_advocate_rw on checklist_items for all
   using (exists (select 1 from cases c where c.id = checklist_items.case_id
                  and c.advocate_id = auth.uid()))
-  with check (true);
+  with check (exists (select 1 from cases c where c.id = checklist_items.case_id
+                      and c.advocate_id = auth.uid()));
 -- clients may update only the "upload" transition (status -> uploaded)
 create policy checklist_client_upload on checklist_items for update
   using (exists (select 1 from cases c where c.id = checklist_items.case_id
@@ -1615,6 +1625,27 @@ Non-goals for the MVP: full WCAG 2.2, sign-language content, and an audio-only m
 | Enterprise | 50,000+ | Multi-region, compliance | Self-hosted Supabase, read replicas, CDN-cached advocate directory |
 
 Design choices that delay the need to scale: cursor pagination everywhere, no N+1 reads from the client, aggregate dashboards computed by scheduled SQL into a summary table (not on-demand).
+
+#### 10.3.1 3-Year Commercial Unit Economics (Phase 2, at 5,000 active advocates)
+
+All figures are BDT/month. Phase 1 remains $0/month platform revenue; this table models commercial scale only, after the pilot proves retention.
+
+| Revenue stream | Assumption | Monthly revenue |
+|---|---|---|
+| Junior Advocate subs | 4,000 advocates × 500 BDT | 2,000,000 |
+| Firm / Chamber subs | 40 firms × 5,000 BDT | 200,000 |
+| Case Care add-on | 5,000 cases × 99 BDT | 495,000 |
+| Milestone Escrow fee | 30,000,000 BDT escrowed × 1.5% | 450,000 |
+| **Gross monthly revenue** | | **~3,145,000** |
+
+| Operating cost | Assumption | Monthly cost |
+|---|---|---|
+| Tech (Supabase Pro + HF paid + R2) | free-tier headroom + paid add-ons | 15,000 |
+| Verification staff (Bar Council checks) | 2 part-time verifiers | 150,000 |
+| Gateway fees (SSLCommerz / bKash) | ~1.5% of escrow volume | 47,000 |
+| **Total operating cost** | | **~212,000** |
+
+**Gross margin:** > 90% (revenue 3,145,000 vs cost 212,000). Platform takes no % of case fees in Phase 1; all monetization is voluntary software subscription plus post-MVP convenience micro-transactions.
 
 ### 10.4 Failure-Degradation Matrix (design view of PRD section 14)
 

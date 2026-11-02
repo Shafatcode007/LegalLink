@@ -10,8 +10,10 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/onboarding/presentation/screens/minimal_profile_screen.dart';
 import '../features/onboarding/presentation/screens/advocate_registration_screen.dart';
 import '../features/sos/presentation/screens/sos_screen.dart';
+import '../features/sos/presentation/screens/sos_broadcast_form_screen.dart';
 import '../features/sos/presentation/screens/advocate_sos_inbox_screen.dart';
 import '../features/admin/presentation/screens/admin_verification_queue_screen.dart';
+import '../features/admin/presentation/screens/advocate_profile_view_screen.dart';
 import 'client_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -56,12 +58,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: '/sos/new',
+        builder: (context, state) => const SosBroadcastFormScreen(),
+      ),
+      GoRoute(
         path: '/sos/inbox',
         builder: (context, state) => const AdvocateSosInboxScreen(),
       ),
       GoRoute(
         path: '/admin/queue',
         builder: (context, state) => const AdminVerificationQueueScreen(),
+      ),
+      GoRoute(
+        path: '/advocate/profile',
+        builder: (context, state) =>
+            AdvocateProfileViewScreen(advocateId: auth.user!.id),
       ),
     ],
   );
@@ -78,6 +89,14 @@ String? _redirect(AuthState auth, String path) {
       return null;
     }
     if (path == '/sos' && auth.user!.role == UserRole.client) return null;
+    if (path == '/sos/new' && auth.user!.role == UserRole.client) return null;
+    if (path == '/sos/inbox' && auth.user!.role == UserRole.advocate) {
+      return null;
+    }
+    if (path == '/admin/queue' && auth.user!.role == UserRole.admin) {
+      return null;
+    }
+    if (path == '/advocate/profile') return null;
     return '/home';
   }
   if (!auth.otpVerified) {

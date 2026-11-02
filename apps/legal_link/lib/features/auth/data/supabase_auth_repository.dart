@@ -74,6 +74,7 @@ class SupabaseAuthRepository implements AuthRepository, AuthSessionChanges {
     final role = switch (row['role']) {
       'client' => UserRole.client,
       'advocate' => UserRole.advocate,
+      'admin' => UserRole.admin,
       _ => throw const AuthFailure('Unsupported account'),
     };
     final phone = row['phone'] as String;

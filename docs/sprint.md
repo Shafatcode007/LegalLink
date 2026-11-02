@@ -36,10 +36,11 @@ Each developer orchestrates parallel AI agents; humans architect, review, verify
 ### 1.4 Parallel track development (frontend · backend · AI — simultaneously, never sequentially)
 All three layers are built **concurrently in every sprint** — no role waits idle for another. The enabler is **contract-first**:
 
-1. **Monday contract freeze (15–30 min, all 3 devs):** agree the week's interfaces before any code:
+1. **Monday contract freeze (15–30 min, all 4 devs):** agree the week's interfaces before any code:
    - **A** publishes RPC signatures (name, params, return type, error codes)
-   - **C** publishes Worker routes + JSON schemas + realtime event names
    - **B** receives both and maps screens to them
+   - **C** publishes Worker routes + JSON schemas + realtime event names
+   - **D** publishes admin-queue flows, seed fixtures, and RLS/golden-set assertions
 2. **Tue–Thu, three lanes run in parallel:**
    - **Backend lane (A):** migrations, RPCs, RLS — verified by the drift-guard suite
    - **Frontend lane (B):** screens and flows wired to **mocks/stubs matching the contract** (e.g., W3's hardcoded checklist is exactly this pattern) — zero idle waiting
@@ -50,15 +51,17 @@ All three layers are built **concurrently in every sprint** — no role waits id
 
 ---
 
-## 2. Team & Roles (3 active developers, ~20–30 h/person/week)
+## 2. Team & Roles (4 active developers, ~20–25 h/person/week)
 
 | Role | Owns | Primary stack |
 |---|---|---|
-| **A — Backend/DB** | Migrations, RPCs, RLS, storage, audit | Supabase (Postgres/SQL) |
-| **B — Client/UI** | Flutter app (Web + Android), screens, offline UI | Flutter/Riverpod, Hive |
-| **C — AI/Integration** | Cloudflare Worker, prompts, providers, realtime, CI/CD | Workers (TS), Hugging Face, GitHub Actions |
+| **Lead Architect & Product Owner / Scrum Master (Shafat)** | Project governance, sprints, repo management, monorepo architecture, RLS/security sign-off | Supabase, Flutter, Workers, CI/CD |
+| **Lane A — Backend & Database (Developer 1)** | Supabase migrations, atomic PL/pgSQL RPCs, Row-Level Security, audit logs, storage policies | Supabase (Postgres/SQL) |
+| **Lane B — Client & Offline UI (Developer 2)** | Flutter Web & Android app, Riverpod state, GoRouter navigation, Hive cache, offline outbox engine | Flutter/Riverpod, GoRouter, Hive |
+| **Lane C — Edge AI & Infrastructure (Developer 3)** | Cloudflare Worker (`llm-gateway` Hono/Zod), PII redaction, Hugging Face Serverless + local Qwen 2.5 routing, CI/CD pipelines | Workers (TS), Hugging Face, GitHub Actions |
+| **Lane D — Admin Ops, Seeding & Quality Assurance (Developer 4)** | Admin verification queue, Bar Council manual verification flows, test suites (`db/tests/rls_test.sql`), golden sets, seed scrapers | Flutter, SQL, seeding |
 
-**Weekly rhythm (parallel lanes):** Mon (triage + **contract freeze** — RPC/schemas/events agreed) → **Tue (faculty sync; all 3 lanes building simultaneously against contracts)** → Wed (**integrate checkpoint**: mocks → real behind flags) → Thu (harden, tests, rehearse) → **Fri (demo + feedback)**. Unfinished Friday noon → rolling backlog, never silent carry. Backend, frontend, and AI progress are reported as three lanes in every Tuesday update.
+**Weekly rhythm (parallel lanes):** Mon (triage + **contract freeze** — RPC/schemas/events agreed) → **Tue (faculty sync; all 4 lanes building simultaneously against contracts)** → Wed (**integrate checkpoint**: mocks → real behind flags) → Thu (harden, tests, rehearse) → **Fri (demo + feedback)**. Unfinished Friday noon → rolling backlog, never silent carry. Backend, frontend, AI, and admin-ops/QA progress are reported as four lanes in every Tuesday update.
 
 ---
 
