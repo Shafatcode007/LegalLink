@@ -15,6 +15,13 @@
 
 LegalLink connects people in Bangladesh who suddenly need legal help (arrest, bail, disputes) with verified advocates (lawyers), and keeps clients informed about their case with plain-Bangla AI updates.
 
+**Business model (two-sided B2B legal-tech SaaS marketplace).**
+- **Citizen / client side — permanently free:** Core emergency access (SOS broadcast, case tracking, AI document checklist) is 100% free with no subscription, no pay-to-win, and no referral cuts. This is a non-negotiable public-good guarantee designed to eliminate tout ("dalal") exploitation of vulnerable families.
+- **Legal-professional side — monetized B2B software subscriptions:** Verified advocates pay a tiered monthly SaaS subscription for SOS lead routing and practice automation:
+  - **Junior Advocates:** 500 BDT/month micro-SaaS tier.
+  - **Senior Advocates & Chambers:** 3,000–5,000 BDT/month multi-seat Chamber License with delegation workflows.
+- **Post-MVP convenience micro-transactions (Phase 2):** Case Care @ 99 BDT and Milestone Escrow fee @ 1.5% of the escrowed amount. Platform revenue only begins in Phase 2; Phase 1 (MVP/pilot) is 0 BDT platform revenue with manual off-platform payments (bKash/Nagad/Cash) that the platform never touches.
+
 Core value proposition:
 1. **Emergency SOS** - find a verified bail lawyer near the relevant Thana/court in minutes, not days.
 2. **Case transparency** - clients track hearings, dates, and plain-language updates instead of depending on middlemen (dalals).
@@ -27,15 +34,16 @@ When someone in Bangladesh is arrested, relatives are stressed and usually find 
 
 ## 3. Vision
 
-Give every person fast, transparent access to suitable legal representation and clear visibility into their case.
+Give every person fast, transparent access to suitable legal representation and clear visibility into their case. Core emergency access remains permanently free for citizens; the platform is sustained by voluntary B2B software subscriptions from legal professionals, never by case referral cuts or client-facing fees.
 
 ## 4. Target Users & Roles
 
-| Role | Description | Primary goals |
-|---|---|---|
-| **Client / Family / Victim** | Person whose family member was arrested or who needs legal help | Find a lawyer fast, prepare documents, track the case, understand updates |
-| **Advocate** | Verified legal professional | Receive clients (incl. SOS), update case progress, bill transparently |
-| **Admin / Moderator** | Platform operator | Verify advocates, moderate reviews/complaints, monitor AI safety, audit |
+| Role | Description | Primary goals | Monetization |
+|---|---|---|---|
+| **Junior / Independent Advocates (The Growth Engine)** | Solo or small-practice verified lawyers seeking SOS leads and practice automation | Receive SOS leads, update case progress, bill transparently, automate intake | **500 BDT/month** micro-SaaS tier |
+| **Senior Advocates & Law Firms (The Credibility Anchor)** | Established chambers with multiple advocates needing multi-seat licenses and delegation workflows | Manage team caseloads, delegate to junior staff, firm-level billing oversight | **3,000–5,000 BDT/month** Chamber License (multi-seat) |
+| **Clients & Families (The Protected Base)** | Person whose family member was arrested or who needs legal help | Find a lawyer fast, prepare documents, track the case, understand updates | **Permanently free** core tier; optional post-MVP convenience add-ons (Case Care 99 BDT, Milestone Escrow 1.5%) |
+| **Admin / Moderator** | Platform operator | Verify advocates, moderate reviews/complaints, monitor AI safety, audit | Internal operations role; not monetized |
 
 Optional role (post-MVP): Clerk (Muharrir) as a sub-role under Advocate, with voice-first data entry.
 
@@ -205,6 +213,10 @@ SOS: open --accept--> accepted --create--> case created
 - **Overdue handling:** automated reminders at **3, 7 and 14 days** overdue; after 30 days the invoice is flagged for the advocate (no automatic penalties - that is a legal decision outside the app).
 - Invoices are linked to a case; a client can view only their own invoices; every status change is audit-logged.
 - Credit notes / refunds: post-MVP (P2) - until then handled by a `void` + new invoice with a note.
+
+**Two-phase financial architecture (Phase 1 vs Phase 2):**
+- **Phase 1 (MVP / Pilot) — 0 BDT platform revenue:** Payments are manual and off-platform (bKash / Nagad / Cash / bank). The advocate records the transaction (amount, method, TrxID) in the app; an admin manually verifies the proof. The platform **never touches client funds** — it is purely a billing record-keeping tool. No payment gateway, no escrow, no split routing. This keeps Phase 1 compliant with the $0/month free-tier constraint and avoids any Bar Council concerns over the platform holding client money.
+- **Phase 2 (Commercial Scale) — automated split-payment gateway:** A Cloudflare Worker webhook endpoint (`/v1/billing/webhook`) receives payment confirmations from SSLCommerz / bKash Merchant API and executes ledger split-routing: the platform fee is routed to the corporate account and the balance is settled to the advocate. Virtual escrow for Milestone Escrow (1.5%) is held and released by milestone. Phase 2 is opt-in; all Phase 1 features remain free.
 
 ---
 
@@ -425,6 +437,9 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 | Scope creep | Only 8 features in MVP; everything else parked in section 7 backlog |
 | Low-end hardware (2 GB RAM phones) | Lightweight Flutter app, all AI off-device, aggressive caching |
 | Free-tier limits (Supabase/Cloudflare/Hugging Face) | Rate limits (section 13), AI caching in Workers, usage monitoring; scale plan documented |
+| **Bar Council fee pushback** | Frame advocate fees as **software SaaS subscriptions**, not case-referral cuts; never take a % of case fees in Phase 1; transparent published pricing; Bar Council ethics review before Phase 2 launch |
+| **Low junior-advocate retention** | 500 BDT/mo micro-SaaS priced below a single court appearance; onboarding concierge for first 10 pilots; success stories publicized |
+| **No pay-to-win mechanics** | Search ranking is index-based (district/court/specialization); zero weight to subscription tier or spend; fees are transparent and immutable per engagement |
 
 ## 18. Out of Scope (MVP)
 
@@ -435,6 +450,7 @@ All abuse events are logged in `audit_logs` with the offending ID for admin revi
 - Credit notes / refunds (void + new invoice until P2).
 - Model fine-tuning (optional faculty bonus only; if attempted, use Google Colab T4 - the RTX 4050's 6 GB VRAM is insufficient).
 - Multi-country support; languages other than Bangla + English.
+- **Phase 2 commercial items:** automated split-payment gateway routing, virtual milestone escrow (1.5%), multi-seat Chamber License delegation workflows, Case Care add-on (99 BDT). These are documented in the Phase 1 vs Phase 2 financial architecture under F7 and are explicitly out of MVP scope.
 
 ## 19. Deployment & Release Strategy
 

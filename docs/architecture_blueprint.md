@@ -102,12 +102,10 @@ presentation -> domain <- data
 | `/role` | RoleSelectionScreen | Yes (OTP verified) | Any |
 | `/profile` | MinimalProfileScreen | Yes (role confirmed) | Any |
 | `/home` | HomeScreen | Yes (profile complete) | Any |
-
-**Orphaned screens (exist in code but NOT registered in router):**
-- `SosBroadcastFormScreen`
-- `AdvocateSosInboxScreen`
-- `AdminVerificationQueueScreen`
-- `AdvocateProfileViewScreen`
+| `/sos/new` | SosBroadcastFormScreen | Yes (authenticated) | Client |
+| `/sos/inbox` | AdvocateSosInboxScreen | Yes (verified advocate) | Advocate |
+| `/admin/queue` | AdminVerificationQueueScreen | Yes (admin) | Admin |
+| `/advocate/profile` | AdvocateProfileViewScreen | Yes (authenticated) | Any |
 
 ---
 
@@ -118,7 +116,7 @@ presentation -> domain <- data
 | Component | Purpose |
 |-----------|---------|
 | `profiles` | Extends `auth.users`; role, phone, language, FCM token |
-| `advocates` | 1:1 extension of profiles; bar council no, Sanad/NID URLs, verification state, PIN hash |
+| `advocates` | 1:1 extension of profiles; bar council no, Sanad/NID URLs, verification state, PIN hash, **subscription_tier / subscription_state / subscription_expires_at (Phase 1: all free_pilot at 0 BDT; Phase 2 upgrade path)** |
 | `sos_requests` | Emergency intake; `open -> accepted / declined / cancelled / expired`; district-based routing |
 | `cases` | Case lifecycle; 1:0..1 with `sos_requests` via `sos_id` unique FK |
 | `hearings` | Immutable amendment chain; `published_at` gates client visibility |
@@ -133,6 +131,8 @@ presentation -> domain <- data
 | `legal_knowledge_base` | pgvector RAG corpus (P1) |
 | `offline_sync_queue` | Server mirror for telemetry (not write path) |
 
+**Phase 2 virtual escrow architecture (commercial scale):** At Phase 2, a Cloudflare Worker webhook (`/v1/billing/webhook`) receives payment gateway confirmations (SSLCommerz / bKash Merchant API) and executes ledger split-routing — platform fee to the corporate account, balance to the advocate. Virtual milestone escrow (1.5%) is held and released per milestone. Phase 1 remains $0/month platform revenue with manual off-platform payments; the platform never touches client funds.
+
 ### 4.2 Row Level Security (RLS) — exact
 
 RLS enabled on **every** table. `auth.uid()` is the only identity source.
@@ -146,7 +146,7 @@ RLS enabled on **every** table. `auth.uid()` is the only identity source.
 | `hearings` | `published_at IS NOT NULL AND client is party` | Advocate writes own case | Advocate own case | None |
 | `ai_summaries` | `state='published' AND client is party` | None | Advocate own case | None |
 | `invoices` | `advocate_id = auth.uid() OR client_id = auth.uid() OR is_admin()` | Advocate own | Advocate own | None |
-| `invoice_items` | Party of invoice | None (`with check (true)` — known gap) | Party of invoice | Cascade via invoices |
+| `invoice_items` | Party of invoice | Advocate owns draft/sent invoice (bounded `with check`) | Party of invoice | Cascade via invoices |
 | `consents` | `client_id = auth.uid()` | `client_id = auth.uid()` | `client_id = auth.uid()` | None |
 | `documents` | Case parties + `deleted_at IS NULL` | `uploaded_by = auth.uid()` | `uploaded_by = auth.uid()` | None |
 | `checklist_items` | Client own case | None | Advocate own case; client upload transition | None |
@@ -194,6 +194,7 @@ RLS enabled on **every** table. `auth.uid()` is the only identity source.
 | `/v1/ai/health` | GET | Provider reachability (`local` \| `huggingface`) |
 | `/v1/invoice/pdf` | POST | Server-side rendered signed invoice PDF URL (15-min expiry) |
 | `/v1/rate/check` | POST | Rate-limit pre-flight (`sos`, `triage`, `pin`, etc.) |
+| `/v1/billing/webhook` | POST | **Phase 2 reserved:** payment gateway webhook (SSLCommerz / bKash Merchant API) for ledger split-routing and escrow reconciliation |
 
 ### 5.2 Worker Pipeline (exact sequence)
 
@@ -332,6 +333,12 @@ After 5 failed attempts → record marked `failed` with user-visible retry butto
 | L3 Authorization | RLS on all tables + security-definer RPCs + storage policies |
 | L4 Encryption | AES-256 at rest (Supabase); pgcrypto for PIN hashing; 15-min signed URLs |
 | L5 Audit | Append-only `audit_logs`; no INSERT/UPDATE/DELETE API policy |
+
+**Bar Council ethical guardrails (enforced by system design):**
+- **No Pay-to-Win Rankings:** Search ranking is index-based via the `advocate_search` RPC (districts, courts, specializations). Zero weight is given to subscription tier or spend; a free_pilot advocate ranks identically to a chamber_premium advocate.
+- **No Dynamic Bidding:** Fee ranges (`fee_min_bdt` / `fee_max_bdt`) are transparent and immutable per engagement; advocates cannot undercut one another in SOS races.
+- **Mandatory 15% VAT:** All invoice calculations enforce VAT compliance (`vat_rate` default 15.00; `vat_bdt`/`total_bdt` derived from `subtotal_bdt`).
+- **Platform never takes case-referral cuts:** Monetization is voluntary B2B software subscription (500 BDT/mo junior, 3,000–5,000 BDT/mo chamber) plus post-MVP convenience micro-transactions (Case Care 99 BDT, Milestone Escrow 1.5%). Phase 1 platform revenue is 0 BDT; client funds are never held by the platform.
 
 ---
 

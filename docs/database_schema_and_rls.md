@@ -24,6 +24,8 @@ create type invoice_state      as enum ('draft','sent','partially_paid','paid','
 create type payment_method     as enum ('bkash','nagad','cash','bank');
 create type doc_status         as enum ('uploaded','needs_review','approved','rejected');
 create type ai_feature         as enum ('triage','summary','chatbot');
+create type subscription_tier  as enum ('free_pilot', 'junior_basic', 'chamber_premium');
+create type subscription_state as enum ('active', 'past_due', 'canceled', 'trialing');
 ```
 
 ---
@@ -92,11 +94,16 @@ create table advocates (
   verified_at       timestamptz,
   reverify_due_at   timestamptz,
   availability      jsonb not null default '{}'::jsonb,
+  subscription_tier subscription_tier not null default 'free_pilot',
+  subscription_state subscription_state not null default 'trialing',
+  subscription_expires_at timestamptz,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now(),
   check (fee_max_bdt is null or fee_min_bdt is null or fee_max_bdt >= fee_min_bdt)
 );
 ```
+
+**Subscription tracking (Phase 2 commercial model):** During Phase 1 (MVP), all verified advocates default to `subscription_tier = 'free_pilot'` with `subscription_state = 'trialing'` and full feature access at 0 BDT. These columns exist in the schema from day 1 so the upgrade path to `junior_basic` (500 BDT/mo) and `chamber_premium` (3,000–5,000 BDT/mo) in Phase 2 requires no schema refactoring. `subscription_expires_at` gates paid-tier access; a lapsed subscription returns the advocate to `free_pilot` with no loss of case data or client access.
 
 **FK:** `profile_id → profiles(id)` restrict.
 
@@ -404,6 +411,10 @@ create policy invoices_advocate_write on invoices for all
 
 **Gap:** `with check` does not pin `case_id` or `client_id`; advocate can invoice arbitrary case/client.
 
+**Phase 1 vs Phase 2 cash flow mechanics:**
+- **Phase 1 (MVP / Pilot):** Payments are manual and off-platform (bKash / Nagad / Cash / bank). The advocate records the transaction (amount, method, TrxID) in the `payments` table; an admin manually verifies the proof. The platform **never touches client funds** — `paid_bdt` is a billing record only. No payment gateway, no escrow, no split routing. Consistent with the $0/month free-tier constraint and Bar Council ethics (no case-referral cuts).
+- **Phase 2 (Commercial Scale):** A Cloudflare Worker webhook (`/v1/billing/webhook`) receives gateway confirmations (SSLCommerz / bKash Merchant API) and executes ledger split-routing — platform fee to the corporate account, balance to the advocate. Virtual milestone escrow (1.5%) is held and released per milestone. Phase 2 is opt-in; Phase 1 features remain free.
+
 #### `invoice_items`
 
 ```sql
@@ -416,7 +427,7 @@ create table invoice_items (
 );
 ```
 
-**Gap:** `with check (true)` on insert — unbounded clause; any advocate can insert line item against any invoice id.
+**Gap resolved** — `with check (true)` replaced by a bounded check that re-asserts the parent invoice belongs to the caller and restricts inserts to invoices still in `draft` or `sent` state (see migration `20261102093015_fix_rls_unbounded_checks.sql`).
 
 **RLS:**
 ```sql
@@ -429,7 +440,9 @@ create policy invoice_items_party on invoice_items for select
 create policy invoice_items_advocate_write on invoice_items for all
   using (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
                  and i.advocate_id = auth.uid()))
-  with check (true);
+  with check (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
+                      and i.advocate_id = auth.uid()
+                      and i.state in ('draft', 'sent')));
 ```
 
 ---
@@ -539,7 +552,8 @@ create policy checklist_client_read on checklist_items for select
 create policy checklist_advocate_rw on checklist_items for all
   using (exists (select 1 from cases c where c.id = checklist_items.case_id
                  and c.advocate_id = auth.uid()))
-  with check (true);
+  with check (exists (select 1 from cases c where c.id = checklist_items.case_id
+                      and c.advocate_id = auth.uid()));
 
 create policy checklist_client_upload on checklist_items for update
   using (exists (select 1 from cases c where c.id = checklist_items.case_id
@@ -547,7 +561,7 @@ create policy checklist_client_upload on checklist_items for update
   with check (status in ('uploaded','needs_review'));
 ```
 
-**Gap:** `checklist_advocate_rw` has `with check (true)` — unbounded insert (same gap as invoice_items).
+**Gap resolved** — `checklist_advocate_rw` no longer uses `with check (true)`; the `with check` now re-asserts the caller's case advocacy ownership (see migration `20261102093015_fix_rls_unbounded_checks.sql`).
 
 ---
 

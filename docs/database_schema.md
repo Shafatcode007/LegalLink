@@ -39,6 +39,8 @@ create type invoice_state      as enum ('draft','sent','partially_paid','paid','
 create type payment_method     as enum ('bkash','nagad','cash','bank');
 create type doc_status         as enum ('uploaded','needs_review','approved','rejected');
 create type ai_feature         as enum ('triage','summary','chatbot');
+create type subscription_tier  as enum ('free_pilot', 'junior_basic', 'chamber_premium');
+create type subscription_state as enum ('active', 'past_due', 'canceled', 'trialing');
 ```
 
 ### 2.1 profiles
@@ -107,6 +109,9 @@ Source: TRD §5.4 + §5.5. 1:1 extension of `profiles` (one advocate row per adv
 | `verified_at` | timestamptz | nullable | When verification was granted |
 | `reverify_due_at` | timestamptz | nullable | Annual re-verification deadline |
 | `availability` | jsonb | not null, default `'{}'` | Free-form availability schedule |
+| `subscription_tier` | subscription_tier | not null, default `'free_pilot'` | Phase 1: all verified advocates free_pilot; Phase 2 upgrade path |
+| `subscription_state` | subscription_state | not null, default `'trialing'` | `active`, `past_due`, `canceled`, `trialing` |
+| `subscription_expires_at` | timestamptz | nullable | Paid-tier expiry gate; lapsed returns to free_pilot |
 | `created_at` | timestamptz | not null, default `now()` | Audit |
 | `updated_at` | timestamptz | not null, default `now()` | Audit; maintained by `set_updated_at()` |
 
@@ -123,6 +128,8 @@ check (fee_max_bdt is null or fee_min_bdt is null or fee_max_bdt >= fee_min_bdt)
 ```
 
 Nullable on both sides, so an advocate may quote either bound alone or leave both empty; the constraint only rejects a populated inverted range.
+
+**Subscription tracking (Phase 2 commercial model):** During Phase 1 (MVP), all verified advocates default to `subscription_tier = 'free_pilot'` with `subscription_state = 'trialing'` and full feature access at 0 BDT. These columns exist in the schema from day 1 so the upgrade path to `junior_basic` (500 BDT/mo) and `chamber_premium` (3,000–5,000 BDT/mo) in Phase 2 requires no schema refactoring. `subscription_expires_at` gates paid-tier access; a lapsed subscription returns the advocate to `free_pilot` with no loss of case data or client access.
 
 **RLS policies**
 
@@ -468,6 +475,10 @@ create policy invoices_advocate_write on invoices for all
 
 Advocates own the write path; clients read. Same `for all` caveat as earlier sections: `with check` pins `advocate_id` to self but not `case_id` or `client_id`, so an advocate can invoice an arbitrary case or arbitrary client. The state machine (`draft → sent → partially_paid → paid / overdue / void`) is enforced by the payment/voiding RPCs, not by the policy — `state` and `paid_bdt` are freely writable through this policy.
 
+**Phase 1 vs Phase 2 cash flow mechanics:**
+- **Phase 1 (MVP / Pilot):** Payments are manual and off-platform (bKash / Nagad / Cash / bank). The advocate records the transaction (amount, method, TrxID) in the `payments` table; an admin manually verifies the proof. The platform **never touches client funds** — `paid_bdt` is a billing record only. No payment gateway, no escrow, no split routing. Consistent with the $0/month free-tier constraint and Bar Council ethics (no case-referral cuts).
+- **Phase 2 (Commercial Scale):** A Cloudflare Worker webhook (`/v1/billing/webhook`) receives gateway confirmations (SSLCommerz / bKash Merchant API) and executes ledger split-routing — platform fee to the corporate account, balance to the advocate. Virtual milestone escrow (1.5%) is held and released per milestone. Phase 2 is opt-in; Phase 1 features remain free.
+
 #### invoice_items
 
 | Column | Type | Constraints | Purpose |
@@ -496,10 +507,12 @@ create policy invoice_items_party on invoice_items for select
 create policy invoice_items_advocate_write on invoice_items for all
   using (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
                  and i.advocate_id = auth.uid()))
-  with check (true);
+  with check (exists (select 1 from invoices i where i.id = invoice_items.invoice_id
+                      and i.advocate_id = auth.uid()
+                      and i.state in ('draft', 'sent')));
 ```
 
-**`with check (true)` is the only unbounded clause in the schema.** Unlike every other write policy here, it does not re-assert that the parent invoice belongs to the caller, so any advocate can insert a line item against *any* invoice id — including one belonging to a different advocate — writing arbitrary amounts into someone else's invoice. It also permits inserting items onto an already-`paid` invoice, mutating a settled financial record. The `using` side is correct (it checks ownership for updates/deletes); only the insert path is unguarded. Reusing the same `exists (... and i.advocate_id = auth.uid())` predicate from the `using` clause as the `with check` closes the hole at no cost.
+**RLS hardened** — the `with check (true)` unbounded insert gap is closed. The `with check` now re-uses the same ownership predicate as the `using` clause and additionally gates inserts to invoices still in `draft` or `sent` state, so no advocate can write line items onto another advocate's invoice or mutate an already-`paid`/`void` settled record.
 
 ### 2.9 Remaining Tables
 
@@ -529,7 +542,7 @@ Admin-authored checklist definitions plus the per-case instances generated from 
 
 `checklist_items`: `case_id`, `template_id → checklist_templates(id)`, `item_name_bn`, `importance`, `status checklist_state not null default 'suggested_pending_advocate'`, `ai_reason_bn`, `approved_by`, `approved_at`, `reject_reason`.
 
-RLS: `checklist_client_read` (parties read), `checklist_advocate_rw` (`for all`, `with check (true)` — **same unbounded insert as `invoice_items`**), and `checklist_client_upload`, which restricts clients to `status in ('uploaded','needs_review')`. That last policy is the one place the schema does it right: `using` scopes to the client's own case, `with check` pins the status transition to the upload path only. Worth using as the template when fixing `invoice_items`. Caveat: its `with check` does not restrict *which* columns change, so a client can also rewrite `item_name_bn` or `approved_by` on their own case items.
+RLS: `checklist_client_read` (parties read), `checklist_advocate_rw` (`for all`, bounded `with check` re-asserting case advocacy ownership — gap resolved), and `checklist_client_upload`, which restricts clients to `status in ('uploaded','needs_review')`. That last policy is the one place the schema does it right: `using` scopes to the client's own case, `with check` pins the status transition to the upload path only. Caveat: its `with check` does not restrict *which* columns change, so a client can also rewrite `item_name_bn` or `approved_by` on their own case items.
 
 #### ai_triage_sessions
 

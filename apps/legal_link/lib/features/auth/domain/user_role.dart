@@ -1,6 +1,7 @@
 enum UserRole {
   client,
-  advocate;
+  advocate,
+  admin;
 
   String get value => name;
 }
