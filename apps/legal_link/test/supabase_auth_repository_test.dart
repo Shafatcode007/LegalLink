@@ -79,6 +79,8 @@ void main() {
     expect(user!.phone, '+8801712345678');
     expect(user.role, UserRole.advocate);
     role = 'admin';
-    await expectLater(repository.getCurrentUser(), throwsA(isA<AuthFailure>()));
+    final adminUser = await repository.getCurrentUser();
+    expect(adminUser!.phone, '+8801712345678');
+    expect(adminUser.role, UserRole.admin);
   });
 }
