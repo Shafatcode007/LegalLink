@@ -427,7 +427,7 @@ create table invoice_items (
 );
 ```
 
-**Gap resolved** — `with check (true)` replaced by a bounded check that re-asserts the parent invoice belongs to the caller and restricts inserts to invoices still in `draft` or `sent` state (see migration `20261102_019_fix_rls_unbounded_checks.sql`).
+**Gap resolved** — `with check (true)` replaced by a bounded check that re-asserts the parent invoice belongs to the caller and restricts inserts to invoices still in `draft` or `sent` state (see migration `20261102093015_fix_rls_unbounded_checks.sql`).
 
 **RLS:**
 ```sql
@@ -561,7 +561,7 @@ create policy checklist_client_upload on checklist_items for update
   with check (status in ('uploaded','needs_review'));
 ```
 
-**Gap resolved** — `checklist_advocate_rw` no longer uses `with check (true)`; the `with check` now re-asserts the caller's case advocacy ownership (see migration `20261102_019_fix_rls_unbounded_checks.sql`).
+**Gap resolved** — `checklist_advocate_rw` no longer uses `with check (true)`; the `with check` now re-asserts the caller's case advocacy ownership (see migration `20261102093015_fix_rls_unbounded_checks.sql`).
 
 ---
 
