@@ -18,7 +18,7 @@ const key = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 void main() {
   test(
-    'local fixed OTP: real signup, PIN hash, credential upload and registration',
+    'local fixed OTP: 10-digit phone, signup, upload and registration',
     registrationFlow,
     skip: !enabled,
   );
@@ -42,7 +42,7 @@ Future<SupabaseClient> login(String phone) async {
 }
 
 Future<void> registrationFlow() async {
-  final client = await login('+8801700000099');
+  final client = await login('1700000099');
   addTearDown(client.dispose);
   final auth = SupabaseAuthRepository(client);
   await auth.completeSignup(

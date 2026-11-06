@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/advocate_registration.dart';
+import '../domain/advocate_application.dart';
 
 class SupabaseAdvocateRegistrationRepository
     implements AdvocateRegistrationRepository {
@@ -8,10 +9,61 @@ class SupabaseAdvocateRegistrationRepository
   final SupabaseClient _client;
 
   @override
+  Future<AdvocateApplication?> getApplication(String userId) async {
+    _validateUser(userId);
+    try {
+      final row = await _client
+          .from('advocates')
+          .select(
+            'verification,rejection_reason,attempts,nid_number,bar_council_no,'
+            'courts,districts,specializations,languages,fee_min_bdt,fee_max_bdt,'
+            'sanad_url,nid_url,years_practice,availability',
+          )
+          .eq('profile_id', userId)
+          .maybeSingle();
+      return row == null ? null : _application(row);
+    } catch (_) {
+      throw RegistrationFailure.unavailable;
+    }
+  }
+
+  AdvocateApplication _application(Map<String, dynamic> row) =>
+      AdvocateApplication(
+        verification: AdvocateVerification.values.byName(row['verification']),
+        rejectionReason: row['rejection_reason'] as String?,
+        attempts: (row['attempts'] as num?)?.toInt() ?? 0,
+        registration: AdvocateRegistration(
+          nid: row['nid_number'] as String? ?? '',
+          barCouncilNumber: row['bar_council_no'] as String? ?? '',
+          courts: List<String>.from(row['courts'] ?? []),
+          districts: List<String>.from(row['districts'] ?? []),
+          specializations: {
+            for (final item in row['specializations'] ?? [])
+              Specialization.values.byName(
+                item == 'women_child' ? 'womenAndChild' : item,
+              ),
+          },
+          languages: Set<String>.from(row['languages'] ?? []),
+          feeMin: num.parse('${row['fee_min_bdt'] ?? 0}').toInt(),
+          feeMax: num.parse('${row['fee_max_bdt'] ?? 0}').toInt(),
+          sanadReference: row['sanad_url'] as String? ?? '',
+          nidReference: row['nid_url'] as String? ?? '',
+          yearsPractice: (row['years_practice'] as num?)?.toInt() ?? 0,
+          availableForSos: row['availability']?['sos'] == true,
+        ),
+      );
+
+  @override
   Future<void> submit(String userId, AdvocateRegistration registration) async {
     _validate(userId, registration);
     try {
       final existing = await _existing(userId);
+      if (existing?['verification'] == 'verified') {
+        throw RegistrationFailure.alreadyVerified;
+      }
+      if ((existing?['attempts'] as num? ?? 0) >= 3) {
+        throw RegistrationFailure.attemptsExhausted;
+      }
       if (existing == null && registration.pin.isEmpty) {
         throw RegistrationFailure.invalid;
       }
@@ -35,15 +87,19 @@ class SupabaseAdvocateRegistrationRepository
   }
 
   void _validate(String id, AdvocateRegistration registration) {
-    final user = _client.auth.currentUser;
-    if (user == null) throw RegistrationFailure.unauthenticated;
-    if (user.id != id || user.appMetadata['role'] != 'advocate') {
-      throw RegistrationFailure.forbidden;
-    }
+    _validateUser(id);
     if (!registration.isValid ||
         !registration.validPin ||
         registration.yearsPractice < 0) {
       throw RegistrationFailure.invalid;
+    }
+  }
+
+  void _validateUser(String id) {
+    final user = _client.auth.currentUser;
+    if (user == null) throw RegistrationFailure.unauthenticated;
+    if (user.id != id || user.appMetadata['role'] != 'advocate') {
+      throw RegistrationFailure.forbidden;
     }
   }
 
