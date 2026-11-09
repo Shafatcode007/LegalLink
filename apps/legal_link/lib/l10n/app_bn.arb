@@ -148,6 +148,7 @@
   "registrationSubmitLive": "যাচাইয়ের জন্য পাঠান",
   "registrationSubmitted": "আবেদন পাঠানো হয়েছে",
   "registrationSubmittedBody": "আপনার আবেদন যাচাইয়ের অপেক্ষায় আছে। অনুমোদনের পরেই যাচাইকৃত ব্যাজ দেখা যাবে। যাচাইয়ের প্রত্যাশিত সময়: 48 ঘণ্টা।",
+  "backToHome": "হোমে ফিরুন",
   "registrationAttemptLimit": "পুনরায় আবেদনের সীমা পূর্ণ হয়েছে। আবার আবেদন করার আগে সহায়তায় যোগাযোগ করুন।",
   "registrationPinProtected": "এখানে আগের অনুমোদনের পিন বদলানো যাবে না। পিন বদলানোর ব্যবস্থা ব্যবহার করুন অথবা সহায়তায় যোগাযোগ করুন।",
   "uploadLiveReady": "আপলোড সম্পন্ন।",
@@ -180,5 +181,21 @@
       }
     }
   },
-  "sosRestoreError": "আগের SOS আছে কি না পরীক্ষা করা যায়নি। নতুন অনুরোধ শুরুর আগে আবার চেষ্টা করুন।"
+  "sosRestoreError": "আগের SOS আছে কি না পরীক্ষা করা যায়নি। নতুন অনুরোধ শুরুর আগে আবার চেষ্টা করুন।",
+  "registrationStatusTitle": "আইনজীবীর আবেদন",
+  "registrationNotSubmitted": "নিবন্ধনের আবেদন পাঠানো হয়নি",
+  "registrationNotSubmittedBody": "যাচাইয়ের জন্য আইনজীবী হিসেবে নিবন্ধনের তথ্য পূরণ করুন।",
+  "registrationPending": "যাচাইয়ের অপেক্ষায়",
+  "registrationPendingBody": "আপনার আবেদন যাচাইয়ের অপেক্ষায় আছে। সাধারণত 48 ঘণ্টার মধ্যে যাচাই করা হয়। অনুমোদনের আগে তথ্য সংশোধন করে আবার পাঠাতে পারবেন।",
+  "registrationVerified": "যাচাইকৃত আইনজীবী",
+  "registrationVerifiedBody": "আপনার আবেদন অনুমোদিত হয়েছে। নিবন্ধনের আবেদন আবার পাঠাতে হবে না।",
+  "registrationRejected": "সংশোধন প্রয়োজন",
+  "registrationRejectedBody": "যাচাইকারীর মতামত দেখে তথ্য সংশোধন করে আবার আবেদন পাঠান।",
+  "registrationRejectionReason": "যাচাইকারীর মতামত: {reason}",
+  "@registrationRejectionReason": {"placeholders": {"reason": {"type": "String"}}},
+  "registrationEditResubmit": "সংশোধন করে আবার পাঠান",
+  "registrationResubmit": "যাচাইয়ের জন্য আবার পাঠান",
+  "registrationStatusError": "আবেদনের অবস্থা জানা যায়নি। আবেদন পাঠানোর আগে আবার চেষ্টা করুন।",
+  "registrationExistingPin": "আপনার আগের অনুমোদনের পিন বহাল থাকবে। আবার পিন দিতে হবে না।",
+  "previouslyUploadedPhoto": "আগে আপলোড করা ছবি"
 }

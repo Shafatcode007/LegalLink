@@ -7,6 +7,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../auth/domain/app_user.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../widgets/advocate_registration_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,6 +29,10 @@ class HomeScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ..._welcome(context, l10n),
+                  if (user.role == UserRole.advocate) ...[
+                    AdvocateRegistrationCard(userId: user.id),
+                    const SizedBox(height: 24),
+                  ],
                   _profile(user, l10n),
                   const SizedBox(height: 24),
                   ..._actions(context, ref, auth, l10n),
@@ -128,15 +133,6 @@ class HomeScreen extends ConsumerWidget {
     AuthState auth,
     AppLocalizations l10n,
   ) => [
-    if (auth.user!.role == UserRole.advocate) ...[
-      AppButton.primary(
-        label: l10n.advocateRegistrationTitle,
-        icon: const Icon(Icons.assignment_ind_outlined),
-        isFullWidth: true,
-        onPressed: () => context.push('/advocate-registration'),
-      ),
-      const SizedBox(height: 24),
-    ],
     if (auth.user!.role == UserRole.client) ...[
       TextButton.icon(
         onPressed: () => context.go('/sos'),

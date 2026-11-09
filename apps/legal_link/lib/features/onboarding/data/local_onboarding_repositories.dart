@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 
 import '../domain/advocate_registration.dart';
+import '../domain/advocate_application.dart';
 import '../domain/credential_upload.dart';
 
 class PlatformCredentialPicker implements CredentialPicker {
@@ -73,9 +74,34 @@ class LocalCredentialUploadRepository implements CredentialUploadRepository {
 
 class LocalAdvocateRegistrationRepository
     implements AdvocateRegistrationRepository {
+  final _applications = <String, AdvocateApplication>{};
+
+  @override
+  Future<AdvocateApplication?> getApplication(String userId) async =>
+      _applications[userId];
+
   @override
   Future<void> submit(String userId, AdvocateRegistration registration) async {
     if (!registration.isValid) throw ArgumentError('invalid_registration');
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    _applications[userId] = AdvocateApplication(
+      registration: AdvocateRegistration(
+        nid: registration.nid,
+        barCouncilNumber: registration.barCouncilNumber,
+        courts: registration.courts,
+        districts: registration.districts,
+        specializations: registration.specializations,
+        feeMin: registration.feeMin,
+        feeMax: registration.feeMax,
+        languages: registration.languages,
+        sanadReference: registration.sanadReference,
+        nidReference: registration.nidReference,
+        avatarReference: registration.avatarReference,
+        yearsPractice: registration.yearsPractice,
+        availableForSos: registration.availableForSos,
+      ),
+      verification: AdvocateVerification.pending,
+      isDemo: true,
+    );
   }
 }

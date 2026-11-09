@@ -16,12 +16,14 @@ class CredentialUploadField extends ConsumerStatefulWidget {
     required this.label,
     required this.onChanged,
     this.enabled = true,
+    this.initialReference,
     super.key,
   });
   final String userId;
   final CredentialKind kind;
   final String label;
   final bool enabled;
+  final String? initialReference;
   final void Function(String? reference, bool busy) onChanged;
   @override
   ConsumerState<CredentialUploadField> createState() => _UploadFieldState();
@@ -33,6 +35,12 @@ class _UploadFieldState extends ConsumerState<CredentialUploadField> {
   String? _reference, _name;
   bool _busy = false;
   double _progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _reference = widget.initialReference;
+  }
 
   void _changed() => widget.onChanged(_reference, _busy);
   void _setError(Object error) => setState(
@@ -116,7 +124,10 @@ class _UploadFieldState extends ConsumerState<CredentialUploadField> {
           Text(widget.label, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            _name ?? l10n.uploadPhotoHint,
+            _name ??
+                (_reference != null
+                    ? l10n.previouslyUploadedPhoto
+                    : l10n.uploadPhotoHint),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

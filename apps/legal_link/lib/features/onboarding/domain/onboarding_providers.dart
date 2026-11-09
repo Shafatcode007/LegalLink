@@ -1,6 +1,7 @@
 import 'package:riverpod/riverpod.dart';
 
 import 'advocate_registration.dart';
+import 'advocate_application.dart';
 import 'credential_upload.dart';
 
 final credentialPickerProvider = Provider<CredentialPicker>((ref) {
@@ -18,4 +19,11 @@ final advocateRegistrationRepositoryProvider =
       throw StateError(
         'AdvocateRegistrationRepository must be bound in app/di.dart',
       );
+    });
+
+final advocateApplicationProvider = FutureProvider.autoDispose
+    .family<AdvocateApplication?, String>((ref, id) {
+      return ref
+          .watch(advocateRegistrationRepositoryProvider)
+          .getApplication(id);
     });
